@@ -4,7 +4,7 @@
 
 #define D_b (0.4)
 #define D_BETA (1.0 / 1.004)
-#define D_RHO (-1.0)
+#define D_RHO (1.0)
 #define D_Y (1.0)
 #define D_GAMMA (0.72)
 #define D_F (0.45)
@@ -15,7 +15,6 @@ class OLGModel
 public:
 	OLGModel();
 	~OLGModel();
-	void solve();
 	double solveDel2(double x);
 	double solveDel1(double x);
 	void setDel1(double x);
