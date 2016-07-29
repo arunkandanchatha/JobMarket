@@ -1,6 +1,9 @@
 #pragma once
 
 #include "stdafx.h"
+#include "Generation.h"
+#include "MatchingFunction.h"
+#include "MySolver.h"
 
 #define D_b (0.4)
 #define D_BETA (1.0 / 1.004)
@@ -12,38 +15,30 @@
 
 class OLGModel
 {
+	friend class Generation;
 public:
-	OLGModel(double y, double theta);
+	OLGModel(unsigned int generations, double y, MatchingFunction &f);
 	OLGModel(OLGModel &orig);
 	~OLGModel();
-	double solveDel2(double x);
-	double solveDel1(double x);
-	void setDel1(double x);
-	void setDel2(double x);
+	void solveWages();
 	double elasticity(OLGModel &thetaChange, OLGModel &yChange);
-	void setTheta(double x);
-	//double D_F() { return D_THETA / pow(1 + pow(D_THETA, D_l), 1 / D_l); };
-	double D_F() { return pow(D_THETA,D_ETA); };
+
+protected:
+	double nonLinearWageEquation(double x, double Up1, double Ep1, double Wp1);
 
 private:
-	double E2(double x);
-	double E1(double x);
-	double U1(double x);
-	double U2(double x);
-	double partialE2_partialDel2(double x);
-	double partialE1_partialDel1(double x);
-#if 0
-	double totalDel1_totalymb(double x);
-	double totalDel2_totalymb(double x);
-	double dsqE1_dDelsq(double x);
-	double dsqE2_dDelsq(double x);
-	double dsqE1_dDeldDel(double x);
-	double dsqE1_dDeldYmB(double x);
-	double dsqE1_dDeldTheta(double x);
+	void solveWages(unsigned int generation);
+	double calcU(double Up1, double Ep1);
+	double calcE(double delta, double Up1, double Ep1);
+	double calcW(double delta, double Wp1);
+	double partialE_partialDel(double x, double Up1, double Ep1);
 
-	double dU1_dTheta(double x);
-#endif
-	double del1, del2;
-	double D_Y;
-	double D_THETA;
+	std::vector<double> E_vals;
+	std::vector<double> U_vals;
+	std::vector<double> W_vals;
+	std::vector<double> wages;
+
+	const double m_y;
+	const unsigned int m_gens;
+	MatchingFunction *m_f;
 };

@@ -145,16 +145,22 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CobbDouglasMatching.h" />
+    <ClInclude Include="FunctorBase.h" />
     <ClInclude Include="Generation.h" />
     <ClInclude Include="macros.h" />
+    <ClInclude Include="MatchingFunction.h" />
     <ClInclude Include="MySolver.h" />
     <ClInclude Include="OLGModel.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CobbDouglasMatching.cpp" />
     <ClCompile Include="EZ_No_Assets.cpp" />
+    <ClCompile Include="FunctorBase.cpp" />
     <ClCompile Include="Generation.cpp" />
+    <ClCompile Include="MatchingFunction.cpp" />
     <ClCompile Include="MySolver.cpp" />
     <ClCompile Include="OLGModel.cpp" />
     <ClCompile Include="stdafx.cpp" />

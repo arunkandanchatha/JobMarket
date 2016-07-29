@@ -1,19 +1,24 @@
 #pragma once
 
 #include <vector>
+#include "macros.h"
+#include "FunctorBase.h"
+class OLGModel;
 
-class Generation
+typedef double (OLGModel::*OLGModelMemFn)(double x, double Up1, double Ep1, double Wp1);
+
+class Generation : public FunctorBase
 {
 public:
-	Generation(std::vector<double> &p_E, std::vector<double> &p_U, std::vector<double> &p_dE);
+	Generation(OLGModel &p_model, OLGModelMemFn p_fn, double p_Up1, double p_Ep1, double p_Wp1);
 	~Generation();
 
 	double operator()(double x);
 
 private:
-	std::vector<double> E;
-	std::vector<double> U;
-	std::vector<double> dE;
+	const double Ep1,Up1,Wp1;
+	OLGModel *m_model;
+	OLGModelMemFn m_fn;
 
 };
 
