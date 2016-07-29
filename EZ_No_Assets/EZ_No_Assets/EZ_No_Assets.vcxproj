@@ -145,6 +145,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Generation.h" />
     <ClInclude Include="macros.h" />
     <ClInclude Include="MySolver.h" />
     <ClInclude Include="OLGModel.h" />
@@ -153,6 +154,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EZ_No_Assets.cpp" />
+    <ClCompile Include="Generation.cpp" />
     <ClCompile Include="MySolver.cpp" />
     <ClCompile Include="OLGModel.cpp" />
     <ClCompile Include="stdafx.cpp" />
