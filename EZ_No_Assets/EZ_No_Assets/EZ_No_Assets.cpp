@@ -12,10 +12,11 @@ int main()
 	CobbDouglasMatching myF(0.45, 0.28);
 
 	//create model with N generations, F matching function
-	OLGModel model(3, 1.0, myF);
+	OLGModel model(10, 1.0, myF);
 
 	//solve for all wages
 	model.solveWages();
+	model.printWages();
 
 	//solve for elasticity
 	return 0;

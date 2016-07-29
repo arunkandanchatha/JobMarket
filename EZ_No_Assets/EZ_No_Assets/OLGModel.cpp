@@ -42,7 +42,7 @@ void OLGModel::solveWages(unsigned int generations)
 		double latestWages = wages.back();
 		Generation toSolve(*this, &OLGModel::nonLinearWageEquation, latestU, latestE, latestW);
 		MySolver solver(toSolve, 10E-15);
-		double del = solver.solve(latestWages,m_y);
+		double del = solver.solve(latestWages-D_b,m_y);
 		wages.push_back(D_b + del);
 		U_vals.push_back(calcU(latestU, latestE));
 		E_vals.push_back(calcE(del, latestU, latestE));
@@ -64,8 +64,15 @@ double OLGModel::calcW(double delta, double Wp1) {
 }
 
 double OLGModel::nonLinearWageEquation(double x, double Up1, double Ep1, double Wp1) {
-
-	return calcE(x, Up1, Ep1) - calcU(Up1, Ep1) - D_GAMMA / (1 - D_GAMMA)*calcW(x, Wp1)*partialE_partialDel(x, Up1, Ep1);
+	double penalty = 0;
+	if (D_b + x > m_y) {
+		penalty += 100;
+	}
+	else if (x < 0) {
+		penalty += 100;
+	}
+	return penalty + ABS(calcE(x, Up1, Ep1) - calcU(Up1, Ep1) 
+		- D_GAMMA / (1 - D_GAMMA)*calcW(x, Wp1)*partialE_partialDel(x, Up1, Ep1));
 }
 
 double OLGModel::partialE_partialDel(double x, double Up1, double Ep1) {
@@ -105,4 +112,11 @@ double OLGModel::elasticity(OLGModel &thetaChange, OLGModel &yChange) {
 	return (y-D_b)*partialWRTymb/denom;
 #endif
 	return 0;
+}
+
+void OLGModel::printWages() {
+	for (int i = 0; i < m_gens; i++) {
+		std::cout << "Cohort " << i << ": " << wages[m_gens - 1 - i] << std::endl;
+	}
+	return;
 }
