@@ -81,41 +81,34 @@ double OLGModel::partialE_partialDel(double x, double Up1, double Ep1) {
 	return dE_dDel;
 }
 
+double OLGModel::expectedW() {
+	double total = 0;
+	for (unsigned int i = 0; i < m_gens; i++) {
+		total += W_vals[i];
+	}
+	total /= m_gens;
+	return total;
+}
 
-double OLGModel::elasticity(OLGModel &thetaChange, OLGModel &yChange) {
-#if 0
-	double w11 = D_b + del1;
-	double w21 = D_b + del2;
-	double w12 = D_b + yChange.del1;
-	double w22 = D_b + yChange.del2;
-	double w1theta = D_b + thetaChange.del1;
-	double w2theta = D_b + thetaChange.del2;
+double OLGModel::elasticity() {
+	OLGModel thetaChange(*this);
+	thetaChange.m_f = m_f->dTheta();
+	OLGModel yChange(m_gens,1.0001*m_y,*m_f);
 
-	double y = D_Y;
-	double y2 = yChange.D_Y;
+	thetaChange.solveWages();
+	yChange.solveWages();
 
-	double theta = D_THETA;
-	double theta2 = thetaChange.D_THETA;
+	double EW = expectedW();
+	double num = (m_y - D_b)*(yChange.expectedW() - EW) / (yChange.m_y - m_y);
+	double denom = (1 - D_ETA)*EW - m_f->getTheta()*
+		(thetaChange.expectedW() - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
 
-	double num1 = (2 * y - w11 - w21) / 2 + D_BETA / 2 * (1 - D_S)*(y - w21);
-	double num2 = (2 * y2 - w12 - w22) / 2 + D_BETA / 2 * (1 - D_S)*(y2 - w22);
-	double partialWRTymb = (num2 - num1) / (y2 - y);
-
-	double numTheta = (2 * y - w1theta - w2theta) / 2 + D_BETA / 2 * (1 - D_S)*(y - w2theta);
-	double partialWRTTheta = (numTheta - num1) / (theta2 - theta);
-
-	double numDel2 = 0;// 0.5*(-1 - D_BETA*(1 - D_S)) * (yChange.del2 - del2) / (y2 - y);
-	double numDel1 = 0;// -0.5 * (yChange.del1 - del1) / (y2 - y);
-
-	double denom = (1 - D_ETA)*num1 - D_THETA*partialWRTTheta;
-
-	return (y-D_b)*partialWRTymb/denom;
-#endif
-	return 0;
+	delete thetaChange.m_f;
+	return num/denom;
 }
 
 void OLGModel::printWages() {
-	for (int i = 0; i < m_gens; i++) {
+	for (unsigned int i = 0; i < m_gens; i++) {
 		std::cout << "Cohort " << i << ": " << wages[m_gens - 1 - i] << std::endl;
 	}
 	return;

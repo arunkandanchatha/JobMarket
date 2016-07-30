@@ -7,6 +7,7 @@ public:
 
 	virtual double calculatedF(double newTheta) = 0;
 	virtual double f() = 0;
+	virtual MatchingFunction *dTheta() = 0;
 
 	double getTheta();
 

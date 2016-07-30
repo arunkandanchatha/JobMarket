@@ -7,7 +7,7 @@
 
 #define D_b (0.4)
 #define D_BETA (1.0 / 1.004)
-#define D_RHO (1.0)
+#define D_RHO (-1.0)
 #define D_GAMMA (0.72)
 #define D_S (0.034)
 #define D_ETA (1-D_GAMMA)
@@ -21,7 +21,7 @@ public:
 	OLGModel(OLGModel &orig);
 	~OLGModel();
 	void solveWages();
-	double elasticity(OLGModel &thetaChange, OLGModel &yChange);
+	double elasticity();
 	void printWages();
 
 protected:
@@ -33,6 +33,7 @@ private:
 	double calcE(double delta, double Up1, double Ep1);
 	double calcW(double delta, double Wp1);
 	double partialE_partialDel(double x, double Up1, double Ep1);
+	double expectedW();
 
 	std::vector<double> E_vals;
 	std::vector<double> U_vals;

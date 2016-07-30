@@ -4,12 +4,15 @@
 class CobbDouglasMatching :
 	public MatchingFunction
 {
+private:
+	CobbDouglasMatching(CobbDouglasMatching &orig);
+
 public:
 	CobbDouglasMatching(double fTarget, double etaTarget);
 	~CobbDouglasMatching();
 
 	double calculatedF(double newTheta) final;
 	double f() final;
-
+	MatchingFunction *dTheta() final;
 };
 
