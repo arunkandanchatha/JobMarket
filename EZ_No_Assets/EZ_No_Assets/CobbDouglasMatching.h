@@ -6,6 +6,7 @@ class CobbDouglasMatching :
 {
 private:
 	CobbDouglasMatching(CobbDouglasMatching &orig);
+	const double m_mu;
 
 public:
 	CobbDouglasMatching(double fTarget, double etaTarget);

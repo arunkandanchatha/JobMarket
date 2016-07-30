@@ -7,7 +7,7 @@
 
 #define D_b (0.4)
 #define D_BETA (1.0 / 1.004)
-#define D_RHO (-1.0)
+#define D_RHO (1.0)
 #define D_GAMMA (0.72)
 #define D_S (0.034)
 #define D_ETA (1-D_GAMMA)

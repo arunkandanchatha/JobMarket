@@ -1,11 +1,11 @@
 #include "CobbDouglasMatching.h"
 
-CobbDouglasMatching::CobbDouglasMatching(double fTarget, double etaTarget) : MatchingFunction(etaTarget)
+CobbDouglasMatching::CobbDouglasMatching(double fTarget, double etaTarget) : MatchingFunction(etaTarget), m_mu(fTarget)
 {
-	m_theta = exp(log(fTarget) / etaTarget);
+	m_theta = 1; 
 }
 
-CobbDouglasMatching::CobbDouglasMatching(CobbDouglasMatching &orig) : MatchingFunction(orig.m_eta)
+CobbDouglasMatching::CobbDouglasMatching(CobbDouglasMatching &orig) : MatchingFunction(orig.m_eta), m_mu(orig.m_mu)
 {
 	m_theta = orig.m_theta;
 }
@@ -17,7 +17,7 @@ CobbDouglasMatching::~CobbDouglasMatching()
 
 double CobbDouglasMatching::calculatedF(double x)
 {
-	return pow(x, m_eta);
+	return m_mu*pow(x, m_eta);
 }
 
 double CobbDouglasMatching::f()

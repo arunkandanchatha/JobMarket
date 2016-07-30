@@ -16,7 +16,7 @@ OLGModel::~OLGModel()
 
 void OLGModel::solveWages()
 {
-	return solveWages(1);
+	return solveWages(m_gens);
 }
 
 void OLGModel::solveWages(unsigned int generations)
@@ -25,30 +25,32 @@ void OLGModel::solveWages(unsigned int generations)
 		std::cout << "OLGModel.solveWages(generations): Error! found a generation higher than max." << std::endl;
 		exit(-1);
 	}
-	if (generations == m_gens) {
-		E_vals.push_back((1 - D_BETA)*pow(D_b, D_RHO));
-		U_vals.push_back((1 - D_BETA)*pow(D_b, D_RHO));
-		W_vals.push_back(0);
-		wages.push_back(D_b);
-		return;
+	if (generations < 1) {
+		std::cout << "OLGModel.solveWages(generations): Error! found a generation < 1." << std::endl;
+		exit(-1);
 	}
-	else {
-		solveWages(generations + 1);
 
-		//solve for delGen using E_vals, U_vals, and W_vals
-		double latestU = U_vals.back();
-		double latestE = E_vals.back();
-		double latestW = W_vals.back();
-		double latestWages = wages.back();
-		Generation toSolve(*this, &OLGModel::nonLinearWageEquation, latestU, latestE, latestW);
-		MySolver solver(toSolve, 10E-15);
-		double del = solver.solve(latestWages-D_b,m_y);
-		wages.push_back(D_b + del);
-		U_vals.push_back(calcU(latestU, latestE));
-		E_vals.push_back(calcE(del, latestU, latestE));
-		W_vals.push_back(calcW(del, latestW));
+	for (unsigned int i = generations; i > 0; i--) {
+		if (i == m_gens) {
+			E_vals.push_back((1 - D_BETA)*pow(D_b, D_RHO));
+			U_vals.push_back((1 - D_BETA)*pow(D_b, D_RHO));
+			W_vals.push_back(0);
+			wages.push_back(D_b);
+		}
+		else {
+			double latestU = U_vals.back();
+			double latestE = E_vals.back();
+			double latestW = W_vals.back();
+			double latestWages = wages.back();
+			Generation toSolve(*this, &OLGModel::nonLinearWageEquation, latestU, latestE, latestW);
+			MySolver solver(toSolve, 10E-15);
+			double del = solver.solve(latestWages - D_b, m_y);
+			wages.push_back(D_b + del);
+			U_vals.push_back(calcU(latestU, latestE));
+			E_vals.push_back(calcE(del, latestU, latestE));
+			W_vals.push_back(calcW(del, latestW));
+		}
 	}
-	return;
 }
 
 double OLGModel::calcU(double Up1, double Ep1) {
