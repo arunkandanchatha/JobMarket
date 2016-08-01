@@ -7,21 +7,21 @@
 
 #define D_b (0.4)
 #define D_BETA (1.0 / 1.004)
-#define D_RHO (1.0)
-#define D_GAMMA (0.72)
-#define D_S (0.034)
-#define D_ETA (1-D_GAMMA)
-#define D_l (log(1-D_ETA)/log(0.45)) 
+#define D_RHO (-1.0)
+
+//#define D_GAMMA (0.72)
+//#define D_ETA (1-D_GAMMA)
 
 class OLGModel
 {
 	friend class Generation;
 public:
-	OLGModel(unsigned int generations, double y, MatchingFunction &f);
+	OLGModel(unsigned int generations, double y, double s, MatchingFunction &f);
 	OLGModel(OLGModel &orig);
 	~OLGModel();
 	void solveWages();
-	double elasticity();
+	double elasticityWRTymb();
+	double elasticityWRTs();
 	void printWages();
 
 protected:
@@ -41,6 +41,8 @@ private:
 	std::vector<double> wages;
 
 	const double m_y;
+	const double m_s;
 	const unsigned int m_gens;
 	MatchingFunction *m_f;
+	const double m_gamma;
 };

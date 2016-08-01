@@ -15,3 +15,8 @@ double MatchingFunction::getTheta()
 {
 	return m_theta;
 }
+
+double MatchingFunction::getEta()
+{
+	return m_eta;
+}

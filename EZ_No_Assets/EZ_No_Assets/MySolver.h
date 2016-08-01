@@ -25,7 +25,7 @@ private:
 
 	FunctorBase *m_functionToSolve;
 	double goldenSearch(double a, double b, double c);
-	const double EPSILON = 1.0e-10;
+	const double EPSILON = 1.0e-20;
 
 	/* From Numerical Recipes*/
 	void mnbrak(double *ax, double *bx, double *cx, double *fa, double *fb, double *fc);

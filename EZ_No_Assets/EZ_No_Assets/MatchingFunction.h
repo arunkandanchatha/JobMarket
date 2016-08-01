@@ -10,6 +10,7 @@ public:
 	virtual MatchingFunction *dTheta() = 0;
 
 	double getTheta();
+	double getEta();
 
 protected:
 	double m_theta;
