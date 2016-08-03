@@ -16,9 +16,9 @@ int main(int argc, char *argv[])
 
 	std::cout << "Number of Generations = " << numGens << std::endl;
 
-	for (int i = 280; i < 281; i++) {
+	for (int i = 1; i < 100; i++) {
 		//create matching function targetting f=X and eta=Y
-		CobbDouglasMatching myF(0.45, i*0.001);
+		CobbDouglasMatching myF(0.45, i*0.01);
 
 		//create model with N generations, F matching function
 		OLGModel model(numGens, 1.0, 0.034, myF);

@@ -45,6 +45,12 @@
     <ClInclude Include="FunctorBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ShockProcess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ShimerProcess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -69,6 +75,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FunctorBase.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShockProcess.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShimerProcess.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
