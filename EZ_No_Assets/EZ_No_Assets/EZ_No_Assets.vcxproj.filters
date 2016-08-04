@@ -51,6 +51,9 @@
     <ClInclude Include="ShimerProcess.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NoShocksProcess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -81,6 +84,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ShimerProcess.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NoShocksProcess.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

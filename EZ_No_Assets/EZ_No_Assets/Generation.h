@@ -1,24 +1,26 @@
 #pragma once
 
-#include <vector>
-#include "macros.h"
+#include "stdafx.h"
 #include "FunctorBase.h"
+#include "ShockProcess.h"
+
 class OLGModel;
 
-typedef double (OLGModel::*OLGModelMemFn)(double x, double Up1, double Ep1, double Wp1);
+typedef double (OLGModel::*OLGModelMemFn)(int state, double x, VectorXd &Up1, VectorXd &Ep1, VectorXd &Wp1, pdfMatrix& nextPDF);
 
 class Generation : public FunctorBase
 {
 public:
-	Generation(OLGModel &p_model, OLGModelMemFn p_fn, double p_Up1, double p_Ep1, double p_Wp1);
+	Generation(OLGModel &p_model, OLGModelMemFn p_fn, int state, VectorXd &p_Up1, VectorXd &p_Ep1, VectorXd &p_Wp1, pdfMatrix& nextPDF);
 	~Generation();
 
 	double operator()(double x);
 
 private:
-	const double Ep1,Up1,Wp1;
+	VectorXd *Ep1,*Up1,*Wp1;
+	pdfMatrix *m_nextPDF;
+	int m_state;
 	OLGModel *m_model;
 	OLGModelMemFn m_fn;
 
 };
-

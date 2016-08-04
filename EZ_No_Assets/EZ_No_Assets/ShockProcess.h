@@ -1,22 +1,24 @@
 #pragma once
 
-#include <Eigen/Dense>
-using namespace Eigen;
+#include "stdafx.h"
 
 typedef Matrix<double, Dynamic, 2> pdfMatrix;
 
 class ShockProcess
 {
 public:
-	ShockProcess(int states);
+	ShockProcess(unsigned int states);
 	~ShockProcess();
 
-	virtual pdfMatrix nextPeriodPDF(int state) = 0;
+	pdfMatrix nextPeriodPDF(unsigned int state);
+	const VectorXd* states();
+
+	unsigned int numStates();
 
 private:
 	virtual void calculateConditionalProbabilities() = 0;
 
 protected:
-	const int m_states;
 	MatrixXd m_conditionalProbs;
+	VectorXd m_values;
 };
