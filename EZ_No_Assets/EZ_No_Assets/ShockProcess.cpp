@@ -28,3 +28,11 @@ const VectorXd* ShockProcess::states()
 {
 	return &m_values;
 }
+
+void ShockProcess::printStates()
+{
+	for (int i = 0; i < m_values.size(); i++) {
+		std::cout << "Shimer state " << i << "=" << m_values[i] << std::endl;
+	}
+	return;
+}

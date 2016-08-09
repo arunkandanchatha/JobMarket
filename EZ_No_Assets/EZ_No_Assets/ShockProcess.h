@@ -12,8 +12,8 @@ public:
 
 	pdfMatrix nextPeriodPDF(unsigned int state);
 	const VectorXd* states();
-
 	unsigned int numStates();
+	void printStates();
 
 private:
 	virtual void calculateConditionalProbabilities() = 0;

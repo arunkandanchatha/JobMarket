@@ -5,6 +5,10 @@
 ShimerProcess::ShimerProcess(int states, double sigma, double gamma)
 	: ShockProcess(2*states+1), m_sigma(sigma), m_gamma(gamma)
 {
+	if (states < 1) {
+		std::cout << "must have at least two states for shimer process" << std::endl;
+		exit(-1);
+	}
 	calculateConditionalProbabilities();
 }
 
