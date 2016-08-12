@@ -54,6 +54,15 @@
     <ClInclude Include="NoShocksProcess.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SimulatedAnnealingInterface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SimAnnealForOLGModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="deHaanMatching.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -87,6 +96,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="NoShocksProcess.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SimulatedAnnealingInterface.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SimAnnealForOLGModel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="deHaanMatching.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

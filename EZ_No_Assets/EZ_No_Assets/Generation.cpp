@@ -13,3 +13,11 @@ Generation::~Generation()
 double Generation::operator()(double x) {
 	return CALL_MEMBER_FN(*m_model, m_fn)(m_state, x, *Up1, *Ep1, *Wp1);
 }
+
+double Generation::operator()(const std::vector<double> &x, std::vector<double> &grad) {
+	return CALL_MEMBER_FN(*m_model, m_fn)(m_state, x[0], *Up1, *Ep1, *Wp1);
+}
+
+double Generation::wrap(const std::vector<double> &x, std::vector<double> &grad, void *data) {
+	return (*reinterpret_cast<Generation*>(data))(x, grad);
+}

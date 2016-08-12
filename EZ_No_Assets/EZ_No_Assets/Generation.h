@@ -3,7 +3,7 @@
 #include "stdafx.h"
 #include "FunctorBase.h"
 #include "ShockProcess.h"
-
+#include <vector>
 class OLGModel;
 
 typedef double (OLGModel::*OLGModelMemFn)(int state, double x, VectorXd &Up1, VectorXd &Ep1, VectorXd &Wp1);
@@ -15,6 +15,8 @@ public:
 	~Generation();
 
 	double operator()(double x);
+	double operator()(const std::vector<double> &x, std::vector<double> &grad);
+	static double wrap(const std::vector<double> &x, std::vector<double> &grad, void *data);
 
 private:
 	VectorXd *Ep1,*Up1,*Wp1;

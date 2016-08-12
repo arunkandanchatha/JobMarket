@@ -9,7 +9,7 @@
 #define GOLD  ((sqrt(5.) + 1.) / 2.)
 #define R (GOLD-1)
 #define C (1-R) 
-#define MAX_ITERATIONS (1000)
+#define MAX_ITERATIONS (10000)
 
 class MySolver
 {
@@ -22,6 +22,7 @@ public:
 
 private:
 	const double TOLERANCE;
+	double m_min, m_max;
 
 	FunctorBase *m_functionToSolve;
 	double goldenSearch(double a, double b, double c);

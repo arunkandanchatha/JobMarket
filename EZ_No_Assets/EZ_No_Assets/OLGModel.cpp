@@ -1,7 +1,9 @@
 #include "OLGModel.h"
+#include "nlopt.hpp"
+#include <exception>
 
 OLGModel::OLGModel(unsigned int generations, double y, double s, MatchingFunction &f, ShockProcess &sp)
-	: m_gens(generations),m_f(&f),m_gamma(1-f.getEta()),m_Es(s),m_sp(&sp),m_Y(sp.numStates()),
+	: m_gens(generations),m_f(&f),m_gamma(f.getBargaining()),m_Es(s),m_sp(&sp),m_Y(sp.numStates()),
 	E_vals(generations,sp.numStates()), U_vals(generations,sp.numStates()),
 	W_vals(generations,sp.numStates()),wages(generations,sp.numStates()),
 	m_thetas(sp.numStates())
@@ -14,6 +16,19 @@ OLGModel::OLGModel(unsigned int generations, double y, double s, MatchingFunctio
 	for (unsigned int i = 0; i < sp.numStates(); i++) {
 		m_Y(i) = D_b + exp((*x)(i))*(y - D_b);
 	}
+
+	//error check
+	bool foundError = false;
+	for (unsigned int i = 0; i < sp.numStates(); i++) {
+		if (m_Y(i) < D_b) {
+			foundError = true;
+			std::cout << "Error! OLGModel.constructor(): Y(" << i << ")=" << m_Y(i) << " which is less than outside option, b=" << D_b << std::endl;
+		}
+	}
+	if (foundError) {
+		exit(-1);
+	}
+
 }
 
 OLGModel::~OLGModel()
@@ -25,6 +40,9 @@ void OLGModel::solveWages()
 	for (unsigned int i = m_gens - 1; i < m_gens; i--) {
 		lastSolveGen = i + 1;
 		for (unsigned int j = 0; j < m_sp->numStates(); j++) {
+#if 0
+			std::cout << i << ":" << j << std::endl;
+#endif
 			if (i == m_gens-1) {
 				E_vals(i,j) = (1 - D_BETA)*pow(D_b, D_RHO);
 				U_vals(i, j) = (1 - D_BETA)*pow(D_b, D_RHO);
@@ -36,23 +54,93 @@ void OLGModel::solveWages()
 				VectorXd latestE = E_vals.row(i + 1);
 				VectorXd latestW = W_vals.row(i + 1);
 				double latestWages = wages(i + 1, j);
+				double prodInState = m_Y(j);
 
 				Generation toSolve(*this, &OLGModel::nonLinearWageEquation, j, latestU, latestE, latestW);
-				MySolver solver(toSolve, 1.0E-20);
+#if 0
+				MySolver solver(toSolve, pow(10,-30));
 
-				double prodInState = m_Y(j);
-				double del = solver.solve(latestWages - D_b, prodInState);
-				double newWages = D_b + del;
-				if (newWages <= latestWages) {
-					std::cout << "OLGModel-solveWages(): cohort " << i << " shock " << j << " has wageT <= wage(T+1). HOW?" << std::endl;
-					std::cout << "w" << i << "=" << newWages << ", w" << i + 1 << "=" << latestWages << std::endl;
-					std::cout << "diff: " << newWages - latestWages << std::endl;
+				double del = solver.solve(latestWages, prodInState);
+#else
+				nlopt::opt opt(nlopt::LN_BOBYQA, 1);
+				double lwbnd = latestWages - D_b;
+				double upbnd = prodInState - D_b;
+
+				if (lwbnd == upbnd) {
+#if 0
+					std::cout << "Error! OLGModel.cpp-solveWages() : can only set wage equal to previous one. Really don't want this as it is wrong." << std::endl;
+					std::cout << "w=" << lwbnd + D_b << std::endl;
 					exit(-1);
+#endif
+					wages(i, j) = latestWages;
+					U_vals(i, j) = U_vals(i + 1, j);
+					E_vals(i, j) = E_vals(i + 1, j);
+					W_vals(i, j) = W_vals(i + 1, j);
+
 				}
-				wages(i, j) = newWages;
-				U_vals(i,j) = calcU(j, latestU, latestE);
-				E_vals(i, j) = calcE(j, del, latestU, latestE);
-				W_vals(i, j) = calcW(j, del, latestW);
+				else {
+
+					opt.set_lower_bounds(lwbnd);
+					opt.set_upper_bounds(upbnd);
+					opt.set_min_objective(Generation::wrap, &toSolve);
+
+					opt.set_xtol_rel(1e-10);
+
+					std::vector<double> x(1);
+					x[0] = (lwbnd + upbnd) / 2;
+
+					double minf;
+					nlopt::result result;
+					try {
+						result = opt.optimize(x, minf);
+					}
+					catch (const nlopt::roundoff_limited& e) {
+						std::cout << e.what() << std::endl;
+					}
+					catch (const nlopt::forced_stop& e) {
+						std::cout << e.what() << std::endl;
+						exit(-1);
+					}
+					catch (const std::runtime_error& e) {
+						std::cout << e.what() << std::endl;
+						exit(-1);
+					}
+					catch (const std::exception &e) {
+						std::cout << e.what() << std::endl;
+						exit(-1);
+					}
+					double del = x[0];
+#endif
+					double newWages = D_b + del;
+
+					if (newWages < latestWages) {
+						std::cout << "OLGModel-solveWages(): cohort " << i << " shock " << j << " has wageT < wage(T+1). HOW?" << std::endl;
+						std::cout << "w" << i << "=" << newWages << ", w" << i + 1 << "=" << latestWages << std::endl;
+						std::cout << "diff: " << newWages - latestWages << std::endl;
+						std::cout << "y: " << m_Y(j) << "   y-w(T+1): " << m_Y(j) - latestWages << std::endl;
+						for (int lll = m_gens - 1; lll > i; lll--) {
+							std::cout << "y-w(" << lll << "): " << m_Y(j) - wages(lll, j) << std::endl;
+						}
+						std::cout << "value: " << nonLinearWageEquation(j, del, latestU, latestE, latestW) << std::endl;
+						std::cout << "value0: " << nonLinearWageEquation(j, m_Y(j) - D_b, latestU, latestE, latestW) << std::endl;
+						exit(-1);
+					}
+					if (m_Y(j) - newWages < 0) {
+						std::cout << "OLGModel-solveWages(): cohort " << i << " shock " << j << " has y-w<0. HOW?" << std::endl;
+						std::cout << "y: " << m_Y(j) << "   w: " << newWages << "   y-w(T+1): " << m_Y(j) - newWages << std::endl;
+						for (int lll = m_gens - 1; lll > i; lll--) {
+							std::cout << "y-w(" << lll << "): " << m_Y(j) - wages(lll, j) << std::endl;
+						}
+						std::cout << "value: " << nonLinearWageEquation(j, del, latestU, latestE, latestW) << std::endl;
+						std::cout << "value0: " << nonLinearWageEquation(j, m_Y(j) - D_b, latestU, latestE, latestW) << std::endl;
+						exit(-1);
+					}
+
+					wages(i, j) = newWages;
+					U_vals(i, j) = calcU(j, latestU, latestE);
+					E_vals(i, j) = calcE(j, del, latestU, latestE);
+					W_vals(i, j) = calcW(j, del, latestW);
+				}
 			}
 		}
 	}
@@ -83,7 +171,8 @@ double OLGModel::calcE(int state, double delta, VectorXd &Up1, VectorXd &Ep1) {
 		total += nextPDF(i, 0)*pow(Ep1(i) - m_Es*(Ep1(i) - Up1(i)), D_RHO);
 	}
 	total *= D_BETA;
-	return pow((1 - D_BETA)*pow(D_b+delta, D_RHO) + total, 1.0 / D_RHO);
+	double retVal = pow((1 - D_BETA)*pow(D_b + delta, D_RHO) + total, 1.0 / D_RHO);
+	return retVal;
 }
 
 double OLGModel::calcW(int state, double delta, VectorXd &Wp1) {
@@ -94,26 +183,38 @@ double OLGModel::calcW(int state, double delta, VectorXd &Wp1) {
 	for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
 		total += nextPDF(i, 0)*(1 - m_Es)*Wp1(i);
 	}
-	return m_Y(state) - D_b - delta + D_BETA*total;
-	return 1 - D_b - delta + D_BETA*total;
+	double retVal = m_Y(state) - D_b - delta + D_BETA*total;
+	return retVal;
 }
 
 double OLGModel::nonLinearWageEquation(int state, double x, VectorXd& Up1, VectorXd& Ep1, VectorXd& Wp1) {
 	double penalty = 0;
-	if (D_b + x > m_Y(state)) {
-		penalty += 100;
-	}
-	else if (x < 0) {
-		penalty += 100;
-	}
-	if (lastSolveGen < (m_gens - 1)) {
-		if (D_b + x <= wages(lastSolveGen, state)) {
-			penalty += 100;
+#if 0
+	if ((D_b + x) > (m_Y(state)-1.0E-20)) {
+		penalty += (pow(1 + (D_b + x - (m_Y(state) - 1.0E-20)), 20) - 1);
+		x = m_Y(state) - D_b - 1.0E-20;
+	}else if (x < 0) {
+		penalty += (100+pow(1 - x, 20) - 1);
+		x = 0;
+	}else if (lastSolveGen < (m_gens - 1)) {
+		if ((D_b + x) < wages(lastSolveGen, state)) {
+			penalty += (100+pow(1 + (wages(lastSolveGen, state) - (D_b + x)), 20) - 1);
+			x = wages(lastSolveGen, state) - D_b;
 		}
 	}
+#endif
+	double retVal = penalty +
+		ABS(
+			calcE(state, x, Up1, Ep1) - calcU(state, Up1, Ep1)
+			- m_gamma / (1 - m_gamma)*calcW(state, x, Wp1)*partialE_partialDel(state, x, Up1, Ep1)
+			);
 
-	return penalty + ABS(calcE(state, x, Up1, Ep1) - calcU(state, Up1, Ep1) 
-		- m_gamma / (1 - m_gamma)*calcW(state, x, Wp1)*partialE_partialDel(state, x, Up1, Ep1));
+	if (retVal < 0) {
+		std::cout << "OLGModel.cpp-nonLinearWageEquation(): return value < 0. How is this possible?" << std::endl;
+		exit(-1);
+	}
+//	std::cout << penalty << ":" << x << std::endl;
+	return retVal;
 }
 
 double OLGModel::partialE_partialDel(int state, double x, VectorXd& Up1, VectorXd& Ep1) {
@@ -165,7 +266,7 @@ double OLGModel::elasticityWRTymb() {
 
 	double EW = expectedW(expectedState, true);
 	double num = (Ey - D_b)*(yChange.expectedW(expectedState, true) - EW) / (1.0001*Ey - Ey);
-	double denom = (1 - m_f->getEta())*EW - m_f->getTheta()*
+	double denom = (m_f->getBargaining())*EW - m_f->getTheta()*
 		(thetaChange.expectedW(expectedState, true) - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
 
 	delete thetaChange.m_f;
@@ -184,7 +285,7 @@ double OLGModel::elasticityWRTs() {
 
 	double EW = expectedW(expectedState, true);
 	double num = (m_Es)*(sChange.expectedW(expectedState, true) - EW) / (sChange.m_Es - m_Es);
-	double denom = (1 - m_f->getEta())*EW - m_f->getTheta()*
+	double denom = (m_f->getBargaining())*EW - m_f->getTheta()*
 		(thetaChange.expectedW(expectedState, true) - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
 
 	delete thetaChange.m_f;
@@ -194,8 +295,7 @@ double OLGModel::elasticityWRTs() {
 void OLGModel::printWages() {
 	for (unsigned int i = 0; i < m_gens; i++) {
 		for (unsigned int j = 0; j < m_sp->numStates(); j++) {
-			std::cout << "Cohort (" << i << "," << j << "): y=" << m_Y(j) << " b=" << D_b << " w=" << wages(i, j)
-				<< "      W: " << W_vals(i,j) << std::endl;
+			std::cout << "Cohort (" << i << "," << j << "): y=" << m_Y(j) << " b=" << D_b << " w=" << wages(i, j)<< std::endl;
 		}
 	}
 	return;
@@ -203,9 +303,12 @@ void OLGModel::printWages() {
 
 double OLGModel::operator()(const std::vector<double> &x, std::vector<double> &grad)
 {
+	static int counter = 0;
+
 	if (x.size() != m_sp->numStates()) {
 		std::cout << "Error! OLGModel.cpp::operator() - numStates and xsize (size of theta being solved) are not equal."
 			<< std::endl;
+		std::cout << "x:" << x.size() << ", states:" << m_sp->numStates() << std::endl;
 		exit(-1);
 	}
 	for (unsigned int i = 0; i < x.size(); i++) {
@@ -215,16 +318,50 @@ double OLGModel::operator()(const std::vector<double> &x, std::vector<double> &g
 
 	double retVal = 0;
 	for (int i = 0; i < x.size(); i++) {
-//		std::cout << m_thetas[i] << ":" 
-//			<< abs(D_C / D_BETA - m_f->calculatedF(m_thetas[i]) / m_thetas[i] * expectedW(i)) << std::endl;
 		retVal += abs(D_C / D_BETA - m_f->calculatedF(m_thetas[i]) / m_thetas[i] * expectedW(i));
 	}
-	std::cout << retVal << std::endl;
-	std::cout << "===================" << std::endl;
 	return retVal;
 }
 
 double OLGModel::wrap(const std::vector<double> &x, std::vector<double> &grad, void *data) {
+
+	static unsigned int counter = 0;
+	static double bestSoFar = 10000;
+
 	OLGModel modelToSolve = *(OLGModel *)data;
-	return (*reinterpret_cast<OLGModel*>(data))(x, grad);
+	std::cout << "OLGModel.cpp-wrap(): Starting evaluation " << counter++ << std::endl << std::flush;
+	double value = (*reinterpret_cast<OLGModel*>(data))(x, grad);
+
+	std::cout << "OLGModel.cpp-wrap(): Evaluation " << counter << ": " << value << std::endl << std::flush;
+
+	if (value < bestSoFar) {
+		bestSoFar = value;
+		printStatus(x, counter, value);
+	}
+	return value;
+}
+
+void OLGModel::printStatus(const std::vector<double>& solution, int numCalls, double distance) {
+	using namespace std;
+
+	std::cout << "OLGModel.printStatus(): At evals=" << numCalls << " new best has distance=" << distance
+		<< " where current solution is: " << std::endl;
+	for (int i = 0; i < solution.size(); i++) {
+		printf("%4i %10lf\r\n", i, solution[i]);
+	}
+	std::cout << std::flush;
+
+	ostringstream os;
+	ofstream out_stream;
+	os << "intermediateResults.dat";
+	out_stream.precision(15);
+	out_stream << std::scientific;
+	out_stream.open(os.str(), std::ofstream::out/* | std::ofstream::app*/);
+
+	for (int i = 0; i < solution.size(); i++) {
+		out_stream << solution[i] << std::endl;
+	}
+	out_stream.close();
+
+	return;
 }

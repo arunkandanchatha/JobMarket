@@ -8,7 +8,7 @@
 #include <vector>
 
 #define D_b (0.4)
-#define D_BETA (1.0 / 1.004)
+#define D_BETA (1.0 / 1.012)
 #define D_RHO (-1.0)
 #define D_C (0.213)
 
@@ -22,6 +22,7 @@ public:
 	double elasticityWRTymb();
 	double elasticityWRTs();
 	void printWages();
+	static void printStatus(const std::vector<double>& solution, int numCalls, double distance);
 	double operator()(const std::vector<double> &x, std::vector<double> &grad);
 	static double wrap(const std::vector<double> &x, std::vector<double> &grad, void *data);
 

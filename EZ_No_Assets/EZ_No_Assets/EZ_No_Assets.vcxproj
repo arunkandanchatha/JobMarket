@@ -89,6 +89,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Users\arunk\OneDrive\JMP Libraries\nlopt;C:\Users\arunk\OneDrive\JMP Libraries\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <FloatingPointModel>Strict</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -105,6 +106,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Users\arunk\OneDrive\JMP Libraries\nlopt;C:\Users\arunk\OneDrive\JMP Libraries\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <FloatingPointModel>Strict</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -159,6 +161,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CobbDouglasMatching.h" />
+    <ClInclude Include="deHaanMatching.h" />
     <ClInclude Include="FunctorBase.h" />
     <ClInclude Include="Generation.h" />
     <ClInclude Include="macros.h" />
@@ -168,11 +171,14 @@
     <ClInclude Include="OLGModel.h" />
     <ClInclude Include="ShimerProcess.h" />
     <ClInclude Include="ShockProcess.h" />
+    <ClInclude Include="SimAnnealForOLGModel.h" />
+    <ClInclude Include="SimulatedAnnealingInterface.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CobbDouglasMatching.cpp" />
+    <ClCompile Include="deHaanMatching.cpp" />
     <ClCompile Include="EZ_No_Assets.cpp" />
     <ClCompile Include="FunctorBase.cpp" />
     <ClCompile Include="Generation.cpp" />
@@ -182,6 +188,8 @@
     <ClCompile Include="OLGModel.cpp" />
     <ClCompile Include="ShimerProcess.cpp" />
     <ClCompile Include="ShockProcess.cpp" />
+    <ClCompile Include="SimAnnealForOLGModel.cpp" />
+    <ClCompile Include="SimulatedAnnealingInterface.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

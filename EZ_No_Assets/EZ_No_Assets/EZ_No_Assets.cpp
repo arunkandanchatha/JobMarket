@@ -4,105 +4,142 @@
 #include "stdafx.h"
 #include "OLGModel.h"
 #include "CobbDouglasMatching.h"
+#include "deHaanMatching.h"
 #include "NoShocksProcess.h"
 #include "ShimerProcess.h"
 #include "nlopt.hpp"
+#include "SimAnnealForOLGModel.h"
+//#include "vld.h"
 
 double myConstraint(const std::vector<double> &x, std::vector<double> &grad, void*data);
+double myConstraint2(const std::vector<double> &x, std::vector<double> &grad, void*data);
+void initialize(std::vector<double> &x, char *filename);
 
 int main(int argc, char *argv[])
 {
 
 	int numGens;
 	int numStates;
-
+	char which;
+	double fTarget;
+	bool readFile = false;
 	switch (argc) {
-	case 3:
-		numGens = atoi(argv[1]);
-		numStates = atoi(argv[2]);
+	case 6:
+		readFile = true;
+	case 5:
+		which = argv[1][0];
+		numGens = atoi(argv[2]);
+		numStates = atoi(argv[3]);
+		fTarget = atof(argv[4]);
 		if (numStates % 2 == 0) {
 			numStates++;
 		}
 		break;
 	default:
 		std::cout << "invoke as follows:" << std::endl
-			<< "./executable gens states" << std::endl;
+			<< "./executable <s|i|e> gens states fTarget [thetaGuess.file]" << std::endl
+			<< "where s-solve (simulated annealing), i-solve (ISRES) and e-elasticity" << std::endl;
 		return 1;
 	}
 
 	std::cout << "Number of Generations = " << numGens << std::endl;
 	std::cout << "Number of States (always odd) = " << numStates << std::endl;
 
-	//create matching function targetting f=X and eta=Y
-	CobbDouglasMatching myF(0.45, 0.28);
+	if(which == 'e')
+	{
+		//solve for all wages
+		//create matching function targetting f=X and eta=Y
+		CobbDouglasMatching myF(fTarget, 0.28);
 
-	//create shock process
-	//NoShocksProcess p;
-	ShimerProcess p((numStates-1)/2, 0.0165, 0.004);
+		//create shock process
+		NoShocksProcess p;
 
-	//create model with N generations, F matching function
-	OLGModel model(numGens, 1.0, 0.034, myF, p);
+		//create model with N generations, F matching function
+		OLGModel model(numGens, 1.0, 0.034, myF, p);
+		model.solveWages();
 
-#if 0
-	//solve for all wages
-	model.solveWages();
+		//solve for elasticity
+		std::cout << myF.getBargaining() << "," << model.elasticityWRTymb() << std::endl;
+		std::cout << myF.getBargaining() << "," << model.elasticityWRTs() << std::endl;
 
-	//solve for elasticity
-	std::cout << myF.getEta() << "," << model.elasticityWRTymb() << std::endl;
-	std::cout << myF.getEta() << "," << model.elasticityWRTs() << std::endl;
-#elif 0
-	std::vector<double> x(numStates);
-	for (int i = 0; i < numStates; i++) {
-		x[i] = 1;
+	}else{
+		std::vector<double> x(numStates);
+		if (readFile) {
+			initialize(x, argv[5]);
+		}
+		else {
+			x.resize(3);
+			double midX = 8.15;
+			for (int i = 0; i < 3; i++) {
+				x[i] = midX + 0.01*(i - 1);
+			}
+		}
+		for (int solveIndex = x.size(); solveIndex <= numStates; solveIndex += 2) {
+			//create matching function targetting f=X and eta=Y
+			deHaanMatching myF(fTarget, .28);
+
+			//create shock process
+			ShimerProcess p((solveIndex - 1) / 2, 0.0165, 4.0 / ((solveIndex - 1) / 2));
+
+			//create model with N generations, F matching function
+			OLGModel model(numGens, 1.0, 0.1, myF, p);
+
+			if (which == 's') {
+				const double targ = 0;
+				SimAnnealForOLGModel worldSolve = SimAnnealForOLGModel(x, targ, 1, 1.0E-8, model, (x[solveIndex - 1] - x[0]) / (solveIndex - 1) / 5, solveIndex*1000);
+				std::vector<double> *soln = worldSolve.solve();
+				std::vector<double> myTempVector;
+				OLGModel::printStatus(*soln, -1, model(*soln, myTempVector));
+				for (int i = 0; i < solveIndex; i++) {
+					std::cout << "theta(" << i << ")=" << (*soln)[i] << std::endl;
+				}
+				delete soln;
+			}
+			else {
+				nlopt::opt opt(nlopt::LN_COBYLA, solveIndex);
+				//nlopt::opt opt(nlopt::GN_ORIG_DIRECT, numStates);
+				//nlopt::opt opt(nlopt::GN_ISRES, numStates);
+				//nlopt::opt opt(nlopt::LN_BOBYQA, numStates);
+				//nlopt::opt opt2(nlopt::LN_BOBYQA, numStates);
+				//opt2.set_lower_bounds(0.01);
+				//opt2.set_xtol_rel(1e-4);
+				//opt2.set_maxeval(10000);
+				//opt.set_local_optimizer(opt2);
+				opt.set_maxeval(solveIndex * 1000);
+				opt.set_lower_bounds(x[0] / 2.0);
+				opt.set_upper_bounds(2 * x[solveIndex - 1]);
+				opt.set_min_objective(OLGModel::wrap, &model);
+				opt.set_population(5 * solveIndex);
+
+				std::vector<int> data(solveIndex);
+				for (int i = 0; i < solveIndex - 1; i++) {
+					data[i] = i + 1;
+					opt.add_inequality_constraint(myConstraint, &data[i], 0);
+				}
+				//			data[0] = numStates - 2;
+				//			opt.add_inequality_constraint(myConstraint2, &data[0], 1e-4);
+				opt.set_xtol_rel(1e-8);
+
+				double minf = 200;
+				nlopt::result result = opt.optimize(x, minf);
+				std::cout << "found minimum value " << minf << " at " << std::endl;
+				for (int i = 0; i < numStates; i++) {
+					std::cout << "theta(" << i << ")=" << x[i] << std::endl;
+				}
+			}
+			std::vector<double> newX(solveIndex + 2);
+			newX[0] = MAX(x[0] - 0.01,0);
+			for (int myIndex = 0; myIndex < solveIndex; myIndex++) {
+				newX[myIndex + 1] = x[myIndex];
+			}
+			newX[solveIndex + 1] = newX[solveIndex] + 0.01;
+
+			x.clear();
+			x.resize(solveIndex + 2);
+			x = newX;
+			//	model.printWages();
+		}
 	}
-	std::vector<double> temp;
-	std::cout << "Distance: " << model(x, temp) << std::endl;
-	model.printWages();
-	p.printStates();
-
-#else
-//	nlopt::opt opt(nlopt::LN_COBYLA, numStates);
-//	nlopt::opt opt(nlopt::GN_ORIG_DIRECT, numStates);
-	nlopt::opt opt(nlopt::LN_BOBYQA, numStates);
-	opt.set_lower_bounds(0.01);
-	opt.set_min_objective(OLGModel::wrap, &model);
-
-	std::vector<int> data(numStates);
-	for (int i = 1; i < numStates; i++) {
-		data[i] = i;
-//		opt.add_inequality_constraint(myConstraint, &data[i], 1e-2);
-	}
-	opt.set_xtol_rel(1e-4);
-
-#if 1
-	std::vector<double> x(numStates);
-	for (int i = 0; i < numStates; i++) {
-		x[i] = 1;
-	}
-#else
-	std::vector<double> x(11);
-	x[0] = 0.63;
-	x[1] = 0.66;
-	x[2] = 0.72;
-	x[3] = 0.89;
-	x[4] = 1.15;
-	x[5] = 1.51;
-	x[6] = 2.04;
-	x[7] = 2.57;
-	x[8] = 3.16;
-	x[9] = 3.37;
-	x[10] = 3.4;
-
-#endif
-
-	double minf;
-	nlopt::result result = opt.optimize(x, minf);
-	std::cout << "found minimum value " << minf << " at " << std::endl;
-	for (int i = 0; i < numStates; i++) {
-		std::cout << "theta(" << i << ")=" << x[i] << std::endl;
-	}
-	model.printWages();
-#endif
 
 	return 0;
 }
@@ -115,4 +152,37 @@ double myConstraint(const std::vector<double> &x, std::vector<double> &grad, voi
 		exit(-1);
 	}
 	return x[topX - 1] - x[topX];
+}
+
+void initialize(std::vector<double> &x, char *filename) {
+
+	using namespace std;
+
+	ifstream file(filename);
+	std::vector<string> value;
+	string line;
+
+	unsigned int counter = 0;
+
+	while (getline(file, line)) {
+		value.push_back(line);
+	}
+
+	if (value.size() > x.size()) {
+		cout << "ERROR! EZ_No_Assets.cpp-initialize(file) : file has unexpected number of lines. " << value.size() << " instead of " << x.size() << endl;
+		exit(-1);
+	}
+	else {
+		x.resize(value.size());
+	}
+
+	for (int i = 0; i < x.size(); i++) {
+		stringstream ss(value[i].c_str());
+		string substring;
+		//value
+		getline(ss, substring);
+		x[i] = atof(substring.c_str());
+	}
+
+	return;
 }

@@ -11,10 +11,10 @@ public:
 	virtual MatchingFunction *dTheta() = 0;
 
 	double getTheta();
-	double getEta();
+	double getBargaining();
 
 protected:
 	double m_theta;
-	const double m_eta;
+	const double m_bargaining;
 };
 

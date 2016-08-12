@@ -11,8 +11,10 @@ MySolver::~MySolver()
 
 double MySolver::solve(double lowerLimit, double upperLimit) {
 	
-	double ax = lowerLimit;
-	double bx = upperLimit;
+	m_min = lowerLimit;
+	m_max = upperLimit;
+	double ax = lowerLimit + (upperLimit - lowerLimit) / 3;
+	double bx = lowerLimit + (upperLimit - lowerLimit) / 2;
 	double cx, fa, fb, fc;
 
 	mnbrak(&ax, &bx, &cx, &fa, &fb, &fc);
@@ -53,6 +55,7 @@ double MySolver::goldenSearch(double ax, double bx, double cx) {
 		absVal = ABS(x3 - x0);
 		tolVal = TOLERANCE*(ABS(x1) + ABS(x2));
 	}
+	//std::cout << tolVal << std::endl;
 	if (f1 < f2) {
 		return x1;
 	}
@@ -64,20 +67,22 @@ double MySolver::goldenSearch(double ax, double bx, double cx) {
 void MySolver::mnbrak(double *ax, double *bx, double *cx, double *fa, double *fb, double *fc)
 {
 	double ulim, u, r, q, fu, dum;
-	*fa = (*ax);
+	*fa = (*m_functionToSolve)(*ax);
 	*fb = (*m_functionToSolve)(*bx);
 	if (*fb > *fa) {
 		SHFT3(dum, *ax, *bx, dum);
 		SHFT3(dum, *fb, *fa, dum);
 	}
 	*cx = (*bx) + GOLD*(*bx - *ax);
+	if (*cx < m_min) {
+		*cx = m_min;
+	}
 	*fc = (*m_functionToSolve)(*cx);
 	while (*fb > *fc) {
-		//std::cout << *fb << ":" << *fc << std::endl;
 		r = (*bx - *ax)*(*fb - *fc);
 		q = (*bx - *cx)*(*fb - *fa);
 		u = (*bx) - ((*bx - *cx)*q - (*bx - *ax)*r) /
-			(2.0*SIGN(q-r)*MAX(ABS(q - r), TINY));
+			(2.0*SIGN(MAX(fabs(q - r), TINY), q - r));
 		ulim = (*bx) + GLIMIT*(*cx - *bx);
 		if ((*bx - u)*(u - *cx) > 0.0) {
 			fu = (*m_functionToSolve)(u);
