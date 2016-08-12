@@ -9,10 +9,10 @@
 #include "ShimerProcess.h"
 #include "nlopt.hpp"
 #include "SimAnnealForOLGModel.h"
+#include "adept_source.h"
 //#include "vld.h"
 
 double myConstraint(const std::vector<double> &x, std::vector<double> &grad, void*data);
-double myConstraint2(const std::vector<double> &x, std::vector<double> &grad, void*data);
 void initialize(std::vector<double> &x, char *filename);
 
 int main(int argc, char *argv[])
@@ -37,8 +37,11 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		std::cout << "invoke as follows:" << std::endl
-			<< "./executable <s|i|e> gens states fTarget [thetaGuess.file]" << std::endl
-			<< "where s-solve (simulated annealing), i-solve (ISRES) and e-elasticity" << std::endl;
+			<< "./executable <s|c|b|e> gens states fTarget [thetaGuess.file]" << std::endl
+			<< "where s-solve (simulated annealing)" << std::endl
+			<< "      c - solve(COBYLA)"<<std::endl
+			<< "      b - bobyqa" <<std::endl
+			<< "      e - elasticity" << std::endl;
 		return 1;
 	}
 
@@ -96,7 +99,20 @@ int main(int argc, char *argv[])
 				delete soln;
 			}
 			else {
-				nlopt::opt opt(nlopt::LN_COBYLA, solveIndex);
+				nlopt::algorithm algoChoice;
+				switch (which) {
+				case 'c':
+					algoChoice = nlopt::LN_COBYLA;
+					break;
+				case 'b':
+					algoChoice = nlopt::LN_BOBYQA;
+					break;
+				default:
+					std::cout << "Unknown algorithm type " << which << std::endl;
+					exit(-1);
+				}
+				
+				nlopt::opt opt(algoChoice, solveIndex);
 				//nlopt::opt opt(nlopt::GN_ORIG_DIRECT, numStates);
 				//nlopt::opt opt(nlopt::GN_ISRES, numStates);
 				//nlopt::opt opt(nlopt::LN_BOBYQA, numStates);
@@ -105,7 +121,7 @@ int main(int argc, char *argv[])
 				//opt2.set_xtol_rel(1e-4);
 				//opt2.set_maxeval(10000);
 				//opt.set_local_optimizer(opt2);
-				opt.set_maxeval(solveIndex * 1000);
+				opt.set_maxeval(solveIndex * 500);
 				opt.set_lower_bounds(x[0] / 2.0);
 				opt.set_upper_bounds(2 * x[solveIndex - 1]);
 				opt.set_min_objective(OLGModel::wrap, &model);
@@ -123,7 +139,7 @@ int main(int argc, char *argv[])
 				double minf = 200;
 				nlopt::result result = opt.optimize(x, minf);
 				std::cout << "found minimum value " << minf << " at " << std::endl;
-				for (int i = 0; i < numStates; i++) {
+				for (int i = 0; i < solveIndex; i++) {
 					std::cout << "theta(" << i << ")=" << x[i] << std::endl;
 				}
 			}

@@ -14,14 +14,21 @@ deHaanMatching::~deHaanMatching()
 {
 }
 
-double deHaanMatching::calculatedF(double x)
+adouble deHaanMatching::calculatedF(adouble x)
 {
 	return x/pow(1+pow(x, m_mu),1.0/ m_mu);
 }
 
+#if 0
+double deHaanMatching::calculatedF(double x)
+{
+	return x / pow(1 + pow(x, m_mu), 1.0 / m_mu);
+}
+#endif
+
 double deHaanMatching::f()
 {
-	return calculatedF(m_theta);
+	return value(calculatedF(m_theta));
 }
 
 MatchingFunction *deHaanMatching::dTheta()

@@ -13,7 +13,7 @@ MatchingFunction::~MatchingFunction()
 
 double MatchingFunction::getTheta()
 {
-	return m_theta;
+	return value(m_theta);
 }
 
 double MatchingFunction::getBargaining()

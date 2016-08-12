@@ -1,12 +1,15 @@
 #pragma once
 #include "stdafx.h"
+#include "adept.h"
+using adept::adouble;
+
 class MatchingFunction
 {
+	friend class OLGModel;
 public:
 	MatchingFunction(double etaTarget);
 	~MatchingFunction();
 
-	virtual double calculatedF(double newTheta) = 0;
 	virtual double f() = 0;
 	virtual MatchingFunction *dTheta() = 0;
 
@@ -14,7 +17,8 @@ public:
 	double getBargaining();
 
 protected:
-	double m_theta;
+	virtual adouble calculatedF(adouble newTheta) = 0;
+	adouble m_theta;
 	const double m_bargaining;
 };
 
