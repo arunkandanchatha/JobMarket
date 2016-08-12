@@ -12,7 +12,6 @@
 //#include "vld.h"
 
 double myConstraint(const std::vector<double> &x, std::vector<double> &grad, void*data);
-double myConstraint2(const std::vector<double> &x, std::vector<double> &grad, void*data);
 void initialize(std::vector<double> &x, char *filename);
 
 int main(int argc, char *argv[])
@@ -105,7 +104,7 @@ int main(int argc, char *argv[])
 				//opt2.set_xtol_rel(1e-4);
 				//opt2.set_maxeval(10000);
 				//opt.set_local_optimizer(opt2);
-				opt.set_maxeval(solveIndex * 1000);
+				opt.set_maxeval(solveIndex * 500);
 				opt.set_lower_bounds(x[0] / 2.0);
 				opt.set_upper_bounds(2 * x[solveIndex - 1]);
 				opt.set_min_objective(OLGModel::wrap, &model);
@@ -123,7 +122,7 @@ int main(int argc, char *argv[])
 				double minf = 200;
 				nlopt::result result = opt.optimize(x, minf);
 				std::cout << "found minimum value " << minf << " at " << std::endl;
-				for (int i = 0; i < numStates; i++) {
+				for (int i = 0; i < solveIndex; i++) {
 					std::cout << "theta(" << i << ")=" << x[i] << std::endl;
 				}
 			}
