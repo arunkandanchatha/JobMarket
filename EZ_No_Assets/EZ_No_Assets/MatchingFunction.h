@@ -3,7 +3,7 @@
 class MatchingFunction
 {
 public:
-	MatchingFunction(double etaTarget);
+	MatchingFunction(double parameter);
 	~MatchingFunction();
 
 	virtual double calculatedF(double newTheta) = 0;
@@ -11,10 +11,10 @@ public:
 	virtual MatchingFunction *dTheta() = 0;
 
 	double getTheta();
-	double getBargaining();
+	double getParameter();
 
 protected:
 	double m_theta;
-	const double m_bargaining;
+	const double m_parameter;
 };
 

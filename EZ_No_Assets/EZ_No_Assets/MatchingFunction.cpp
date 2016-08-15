@@ -2,7 +2,7 @@
 
 
 
-MatchingFunction::MatchingFunction(double bargainingPower) : m_bargaining(bargainingPower)
+MatchingFunction::MatchingFunction(double parameter) : m_parameter(parameter)
 {
 }
 
@@ -16,7 +16,7 @@ double MatchingFunction::getTheta()
 	return m_theta;
 }
 
-double MatchingFunction::getBargaining()
+double MatchingFunction::getParameter()
 {
-	return m_bargaining;
+	return m_parameter;
 }

@@ -8,7 +8,7 @@ private:
 	const double m_mu;
 
 public:
-	deHaanMatching(double fTarget, double etaTarget);
+	deHaanMatching(double fTarget);
 	~deHaanMatching();
 
 	double calculatedF(double newTheta) final;
