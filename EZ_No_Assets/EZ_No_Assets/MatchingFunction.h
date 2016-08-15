@@ -1,7 +1,5 @@
 #pragma once
 #include "stdafx.h"
-#include "adept.h"
-using adept::adouble;
 
 class MatchingFunction
 {
@@ -17,8 +15,8 @@ public:
 	double getBargaining();
 
 protected:
-	virtual adouble calculatedF(adouble newTheta) = 0;
-	adouble m_theta;
+	virtual double calculatedF(double newTheta) = 0;
+	double m_theta;
 	const double m_bargaining;
 };
 

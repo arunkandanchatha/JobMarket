@@ -6,8 +6,6 @@
 #include "MySolver.h"
 #include "ShockProcess.h"
 #include <vector>
-#include "adept.h"
-using adept::adouble;
 
 #define D_b (0.4)
 #define D_BETA (1.0 / 1.012)
@@ -32,7 +30,7 @@ protected:
 	double nonLinearWageEquation(int state, double x, VectorXd &Up1, VectorXd &Ep1, VectorXd &Wp1);
 
 private:
-	adouble calcU(int state, VectorXd &Up1, VectorXd &Ep1);
+	double calcU(int state, VectorXd &Up1, VectorXd &Ep1);
 	double calcE(int state, double delta, VectorXd &Up1, VectorXd &Ep1);
 	double calcW(int state, double delta, VectorXd &Wp1);
 	double partialE_partialDel(int state, double x, VectorXd &Up1, VectorXd &Ep1);
@@ -41,10 +39,10 @@ private:
 	int lastSolveGen;
 
 	MatrixXd E_vals;
-	std::vector<std::vector<adouble>> U_vals;
+	MatrixXd U_vals;
 	MatrixXd W_vals;
 	MatrixXd wages;
-	std::vector<adouble> m_thetas;
+	VectorXd m_thetas;
 
 	VectorXd m_Y;
 	const double m_Es;

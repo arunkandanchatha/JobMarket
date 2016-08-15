@@ -169,6 +169,7 @@
     <ClInclude Include="MySolver.h" />
     <ClInclude Include="NoShocksProcess.h" />
     <ClInclude Include="OLGModel.h" />
+    <ClInclude Include="OLGSolveAutoDiff.h" />
     <ClInclude Include="ShimerProcess.h" />
     <ClInclude Include="ShockProcess.h" />
     <ClInclude Include="SimAnnealForOLGModel.h" />
@@ -186,6 +187,7 @@
     <ClCompile Include="MySolver.cpp" />
     <ClCompile Include="NoShocksProcess.cpp" />
     <ClCompile Include="OLGModel.cpp" />
+    <ClCompile Include="OLGSolveAutoDiff.cpp" />
     <ClCompile Include="ShimerProcess.cpp" />
     <ClCompile Include="ShockProcess.cpp" />
     <ClCompile Include="SimAnnealForOLGModel.cpp" />

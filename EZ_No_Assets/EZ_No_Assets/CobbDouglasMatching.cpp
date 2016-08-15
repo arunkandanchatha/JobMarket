@@ -15,14 +15,14 @@ CobbDouglasMatching::~CobbDouglasMatching()
 {
 }
 
-adouble CobbDouglasMatching::calculatedF(adouble x)
+double CobbDouglasMatching::calculatedF(double x)
 {
 	return m_mu*pow(x, 1- m_bargaining);
 }
 
 double CobbDouglasMatching::f()
 {
-	return value(calculatedF(m_theta));
+	return calculatedF(m_theta);
 }
 
 MatchingFunction *CobbDouglasMatching::dTheta()

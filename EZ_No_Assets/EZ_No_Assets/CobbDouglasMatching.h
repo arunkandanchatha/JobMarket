@@ -1,8 +1,6 @@
 #pragma once
 #include "stdafx.h"
 #include "MatchingFunction.h"
-#include "adept.h"
-using adept::adouble;
 
 class CobbDouglasMatching :
 	public MatchingFunction
@@ -10,7 +8,7 @@ class CobbDouglasMatching :
 private:
 	CobbDouglasMatching(CobbDouglasMatching &orig);
 	const double m_mu;
-	adouble calculatedF(adouble newTheta) final;
+	double calculatedF(double newTheta) final;
 
 public:
 	CobbDouglasMatching(double fTarget, double etaTarget);

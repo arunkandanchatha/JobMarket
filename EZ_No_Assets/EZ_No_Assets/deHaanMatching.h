@@ -1,7 +1,5 @@
 #pragma once
 #include "MatchingFunction.h"
-#include "adept.h"
-using adept::adouble;
 
 class deHaanMatching :
 	public MatchingFunction
@@ -10,7 +8,7 @@ class deHaanMatching :
 private:
 	deHaanMatching(deHaanMatching &orig);
 	const double m_mu;
-	adouble calculatedF(adouble newTheta) final;
+	double calculatedF(double newTheta) final;
 
 public:
 	deHaanMatching(double fTarget, double etaTarget);

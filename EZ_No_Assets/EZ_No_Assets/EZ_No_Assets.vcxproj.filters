@@ -63,6 +63,9 @@
     <ClInclude Include="deHaanMatching.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="OLGSolveAutoDiff.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -105,6 +108,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="deHaanMatching.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="OLGSolveAutoDiff.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

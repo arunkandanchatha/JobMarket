@@ -9,7 +9,6 @@
 #include "ShimerProcess.h"
 #include "nlopt.hpp"
 #include "SimAnnealForOLGModel.h"
-#include "adept_source.h"
 //#include "vld.h"
 
 double myConstraint(const std::vector<double> &x, std::vector<double> &grad, void*data);

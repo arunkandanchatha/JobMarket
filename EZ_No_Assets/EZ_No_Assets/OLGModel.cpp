@@ -146,19 +146,19 @@ void OLGModel::solveWages()
 	}
 }
 
-adouble OLGModel::calcU(int state, VectorXd &Up1, VectorXd &Ep1) {
-	adouble total = 0;
+double OLGModel::calcU(int state, VectorXd &Up1, VectorXd &Ep1) {
+	double total = 0;
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
 //	for (unsigned int i = 0; i < m_sp->numStates(); i++) {
 	for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
 		double nextProb = nextPDF(i, 0);
-		adouble calcF = m_f->calculatedF(m_thetas[i]);
-		adouble nextVal = pow(Up1(i) + calcF*(Ep1(i) - Up1(i)), D_RHO);
+		double calcF = m_f->calculatedF(m_thetas[i]);
+		double nextVal = pow(Up1(i) + calcF*(Ep1(i) - Up1(i)), D_RHO);
 		total += nextProb*nextVal;
 	}
 	total *= D_BETA;
-	adouble retVal = pow((1 - D_BETA)*pow(D_b, D_RHO) + total, 1.0 / D_RHO);
+	double retVal = pow((1 - D_BETA)*pow(D_b, D_RHO) + total, 1.0 / D_RHO);
 	return retVal;
 }
 
@@ -316,11 +316,11 @@ double OLGModel::operator()(const std::vector<double> &x, std::vector<double> &g
 	}
 	solveWages();
 
-	adouble retVal = 0;
+	double retVal = 0;
 	for (int i = 0; i < x.size(); i++) {
-		retVal += abs(D_C / D_BETA - m_f->calculatedF(m_thetas[i]) / m_thetas[i] * expectedW(i));
+		retVal += pow(D_C / D_BETA - m_f->calculatedF(m_thetas[i]) / m_thetas[i] * expectedW(i), 2);
 	}
-	return value(retVal);
+	return sqrt(retVal);
 }
 
 double OLGModel::wrap(const std::vector<double> &x, std::vector<double> &grad, void *data) {

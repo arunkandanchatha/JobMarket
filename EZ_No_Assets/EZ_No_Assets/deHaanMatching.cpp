@@ -14,7 +14,7 @@ deHaanMatching::~deHaanMatching()
 {
 }
 
-adouble deHaanMatching::calculatedF(adouble x)
+double deHaanMatching::calculatedF(double x)
 {
 	return x/pow(1+pow(x, m_mu),1.0/ m_mu);
 }
@@ -28,7 +28,7 @@ double deHaanMatching::calculatedF(double x)
 
 double deHaanMatching::f()
 {
-	return value(calculatedF(m_theta));
+	return calculatedF(m_theta);
 }
 
 MatchingFunction *deHaanMatching::dTheta()
