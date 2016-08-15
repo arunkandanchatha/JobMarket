@@ -19,5 +19,6 @@ double Generation::operator()(const std::vector<double> &x, std::vector<double> 
 }
 
 double Generation::wrap(const std::vector<double> &x, std::vector<double> &grad, void *data) {
-	return (*reinterpret_cast<Generation*>(data))(x, grad);
+	double retVal = (*reinterpret_cast<Generation*>(data))(x, grad);
+	return retVal;
 }

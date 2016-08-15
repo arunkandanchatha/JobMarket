@@ -2,8 +2,8 @@
 #include "nlopt.hpp"
 #include <exception>
 
-OLGModel::OLGModel(unsigned int generations, double y, double s, MatchingFunction &f, ShockProcess &sp)
-	: m_gens(generations),m_f(&f),m_gamma(f.getBargaining()),m_Es(s),m_sp(&sp),m_Y(sp.numStates()),
+OLGModel::OLGModel(unsigned int generations, double y, double s, MatchingFunction &f, ShockProcess &sp, double bargaining)
+	: m_gens(generations),m_f(&f), m_bargaining(bargaining),m_Es(s),m_sp(&sp),m_Y(sp.numStates()),
 	E_vals(generations,sp.numStates()), U_vals(generations,sp.numStates()),
 	W_vals(generations,sp.numStates()),wages(generations,sp.numStates()),
 	m_thetas(sp.numStates())
@@ -39,7 +39,9 @@ void OLGModel::solveWages()
 {
 	for (unsigned int i = m_gens - 1; i < m_gens; i--) {
 		lastSolveGen = i + 1;
-		for (unsigned int j = 0; j < m_sp->numStates(); j++) {
+
+		#pragma omp parallel for num_threads(3)
+		for (int j = 0; j < m_sp->numStates(); j++) {
 #if 0
 			std::cout << i << ":" << j << std::endl;
 #endif
@@ -144,6 +146,7 @@ void OLGModel::solveWages()
 			}
 		}
 	}
+	return;
 }
 
 double OLGModel::calcU(int state, VectorXd &Up1, VectorXd &Ep1) {
@@ -206,7 +209,7 @@ double OLGModel::nonLinearWageEquation(int state, double x, VectorXd& Up1, Vecto
 	double retVal = penalty +
 		ABS(
 			calcE(state, x, Up1, Ep1) - calcU(state, Up1, Ep1)
-			- m_gamma / (1 - m_gamma)*calcW(state, x, Wp1)*partialE_partialDel(state, x, Up1, Ep1)
+			- m_bargaining / (1 - m_bargaining)*calcW(state, x, Wp1)*partialE_partialDel(state, x, Up1, Ep1)
 			);
 
 	if (retVal < 0) {
@@ -258,15 +261,15 @@ double OLGModel::expectedW(int state, bool forceNoShocks) {
 double OLGModel::elasticityWRTymb() {
 	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
 	double Ey = m_Y(expectedState);
-	OLGModel thetaChange(m_gens, Ey, m_Es, *(m_f->dTheta()), *m_sp);
-	OLGModel yChange(m_gens, 1.0001*Ey, m_Es, *m_f, *m_sp);
+	OLGModel thetaChange(m_gens, Ey, m_Es, *(m_f->dTheta()), *m_sp, m_bargaining);
+	OLGModel yChange(m_gens, 1.0001*Ey, m_Es, *m_f, *m_sp, m_bargaining);
 
 	thetaChange.solveWages();
 	yChange.solveWages();
 
 	double EW = expectedW(expectedState, true);
 	double num = (Ey - D_b)*(yChange.expectedW(expectedState, true) - EW) / (1.0001*Ey - Ey);
-	double denom = (m_f->getBargaining())*EW - m_f->getTheta()*
+	double denom = m_bargaining*EW - m_f->getTheta()*
 		(thetaChange.expectedW(expectedState, true) - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
 
 	delete thetaChange.m_f;
@@ -278,14 +281,14 @@ double OLGModel::elasticityWRTs() {
 	thetaChange.m_f = m_f->dTheta();
 
 	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
-	OLGModel sChange(m_gens, m_Y(expectedState), 1.0001*m_Es, *m_f, *m_sp);
+	OLGModel sChange(m_gens, m_Y(expectedState), 1.0001*m_Es, *m_f, *m_sp, m_bargaining);
 
 	thetaChange.solveWages();
 	sChange.solveWages();
 
 	double EW = expectedW(expectedState, true);
 	double num = (m_Es)*(sChange.expectedW(expectedState, true) - EW) / (sChange.m_Es - m_Es);
-	double denom = (m_f->getBargaining())*EW - m_f->getTheta()*
+	double denom = m_bargaining*EW - m_f->getTheta()*
 		(thetaChange.expectedW(expectedState, true) - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
 
 	delete thetaChange.m_f;
@@ -312,7 +315,7 @@ double OLGModel::operator()(const std::vector<double> &x, std::vector<double> &g
 		exit(-1);
 	}
 	for (unsigned int i = 0; i < x.size(); i++) {
-		m_thetas[i] = x[i];
+		m_thetas(i) = x[i];
 	}
 	solveWages();
 
@@ -325,18 +328,25 @@ double OLGModel::operator()(const std::vector<double> &x, std::vector<double> &g
 
 double OLGModel::wrap(const std::vector<double> &x, std::vector<double> &grad, void *data) {
 
-	static unsigned int counter = 0;
 	static double bestSoFar = 10000;
+	static unsigned int m_counter=0;
+	static int lastStateSize = 3;
+
+	if (lastStateSize != x.size()) {
+		lastStateSize = x.size();
+		m_counter = 0;
+		bestSoFar = 10000;
+	}
 
 	OLGModel modelToSolve = *(OLGModel *)data;
-	std::cout << "OLGModel.cpp-wrap(): Starting evaluation " << counter++ << std::endl << std::flush;
+	std::cout << "OLGModel.cpp-wrap(): Starting evaluation " << ++m_counter << std::endl << std::flush;
 	double value = (*reinterpret_cast<OLGModel*>(data))(x, grad);
 
-	std::cout << "OLGModel.cpp-wrap(): Evaluation " << counter << ": " << value << std::endl << std::flush;
+	std::cout << "OLGModel.cpp-wrap(): Evaluation " << m_counter << ": " << value << std::endl << std::flush;
 
 	if (value < bestSoFar) {
 		bestSoFar = value;
-		printStatus(x, counter, value);
+		printStatus(x, m_counter, value);
 	}
 	return value;
 }

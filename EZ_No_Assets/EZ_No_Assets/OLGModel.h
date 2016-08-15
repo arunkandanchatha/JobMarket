@@ -8,15 +8,17 @@
 #include <vector>
 
 #define D_b (0.4)
-#define D_BETA (1.0 / 1.012)
+#define D_BETA (1.0 / 1.004)
 #define D_RHO (-1.0)
-#define D_C (0.213)
+#define D_C (1)
+#define D_S (0.034)
+#define D_ETA (0.28)
 
 class OLGModel
 {
 	friend class Generation;
 public:
-	OLGModel(unsigned int generations, double y, double s, MatchingFunction &f, ShockProcess &sp);
+	OLGModel(unsigned int generations, double y, double s, MatchingFunction &f, ShockProcess &sp, double bargaining);
 	~OLGModel();
 	void solveWages();
 	double elasticityWRTymb();
@@ -49,5 +51,5 @@ private:
 	const unsigned int m_gens;
 	MatchingFunction *m_f;
 	ShockProcess *m_sp;
-	const double m_gamma;
+	const double m_bargaining;
 };

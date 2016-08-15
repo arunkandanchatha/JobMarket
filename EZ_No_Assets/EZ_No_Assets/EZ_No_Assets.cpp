@@ -36,11 +36,8 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		std::cout << "invoke as follows:" << std::endl
-			<< "./executable <s|c|b|e> gens states fTarget [thetaGuess.file]" << std::endl
-			<< "where s-solve (simulated annealing)" << std::endl
-			<< "      c - solve(COBYLA)"<<std::endl
-			<< "      b - bobyqa" <<std::endl
-			<< "      e - elasticity" << std::endl;
+			<< "./executable <s|i|e> gens states fTarget [thetaGuess.file]" << std::endl
+			<< "where s-solve (simulated annealing), i-solve (ISRES) and e-elasticity" << std::endl;
 		return 1;
 	}
 
@@ -51,18 +48,18 @@ int main(int argc, char *argv[])
 	{
 		//solve for all wages
 		//create matching function targetting f=X and eta=Y
-		CobbDouglasMatching myF(fTarget, 0.28);
+		CobbDouglasMatching myF(fTarget, 1-D_ETA);
 
 		//create shock process
 		NoShocksProcess p;
 
 		//create model with N generations, F matching function
-		OLGModel model(numGens, 1.0, 0.034, myF, p);
+		OLGModel model(numGens, 1.0, 0.034, myF, p, 1 - D_ETA);
 		model.solveWages();
-
+		model.printWages();
 		//solve for elasticity
-		std::cout << myF.getBargaining() << "," << model.elasticityWRTymb() << std::endl;
-		std::cout << myF.getBargaining() << "," << model.elasticityWRTs() << std::endl;
+		std::cout << myF.getParameter() << "," << model.elasticityWRTymb() << std::endl;
+		std::cout << myF.getParameter() << "," << model.elasticityWRTs() << std::endl;
 
 	}else{
 		std::vector<double> x(numStates);
@@ -71,20 +68,20 @@ int main(int argc, char *argv[])
 		}
 		else {
 			x.resize(3);
-			double midX = 8.15;
+			double midX = 0.5;
 			for (int i = 0; i < 3; i++) {
 				x[i] = midX + 0.01*(i - 1);
 			}
 		}
 		for (int solveIndex = x.size(); solveIndex <= numStates; solveIndex += 2) {
 			//create matching function targetting f=X and eta=Y
-			deHaanMatching myF(fTarget, .28);
+			deHaanMatching myF(1.6);
 
 			//create shock process
-			ShimerProcess p((solveIndex - 1) / 2, 0.0165, 4.0 / ((solveIndex - 1) / 2));
+			ShimerProcess p((solveIndex - 1) / 2, 0.0165/sqrt(3), (4.0 / 3)/((solveIndex - 1) / 2));
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, 1.0, 0.1, myF, p);
+			OLGModel model(numGens, 1.0, D_S, myF, p, 1 - D_ETA);
 
 			if (which == 's') {
 				const double targ = 0;
@@ -110,37 +107,49 @@ int main(int argc, char *argv[])
 					std::cout << "Unknown algorithm type " << which << std::endl;
 					exit(-1);
 				}
-				
+
 				nlopt::opt opt(algoChoice, solveIndex);
-				//nlopt::opt opt(nlopt::GN_ORIG_DIRECT, numStates);
-				//nlopt::opt opt(nlopt::GN_ISRES, numStates);
-				//nlopt::opt opt(nlopt::LN_BOBYQA, numStates);
-				//nlopt::opt opt2(nlopt::LN_BOBYQA, numStates);
-				//opt2.set_lower_bounds(0.01);
-				//opt2.set_xtol_rel(1e-4);
-				//opt2.set_maxeval(10000);
-				//opt.set_local_optimizer(opt2);
-				opt.set_maxeval(solveIndex * 500);
+				opt.set_maxeval(solveIndex * 250);
 				opt.set_lower_bounds(x[0] / 2.0);
 				opt.set_upper_bounds(2 * x[solveIndex - 1]);
 				opt.set_min_objective(OLGModel::wrap, &model);
 				opt.set_population(5 * solveIndex);
 
 				std::vector<int> data(solveIndex);
-				for (int i = 0; i < solveIndex - 1; i++) {
-					data[i] = i + 1;
-					opt.add_inequality_constraint(myConstraint, &data[i], 0);
+				if (which == 'c') {
+					for (int i = 0; i < solveIndex - 1; i++) {
+						data[i] = i + 1;
+						opt.add_inequality_constraint(myConstraint, &data[i], 0);
+					}
 				}
-				//			data[0] = numStates - 2;
-				//			opt.add_inequality_constraint(myConstraint2, &data[0], 1e-4);
-				opt.set_xtol_rel(1e-8);
+				opt.set_stopval(5e-3);
 
 				double minf = 200;
-				nlopt::result result = opt.optimize(x, minf);
+				nlopt::result result;
+				try {
+					result = opt.optimize(x, minf);
+				}
+				catch (const nlopt::roundoff_limited& e) {
+					std::cout << e.what() << std::endl;
+				}
+				catch (const nlopt::forced_stop& e) {
+					std::cout << e.what() << std::endl;
+					exit(-1);
+				}
+				catch (const std::runtime_error& e) {
+					std::cout << e.what() << std::endl;
+					exit(-1);
+				}
+				catch (const std::exception &e) {
+					std::cout << e.what() << std::endl;
+					exit(-1);
+				}
 				std::cout << "found minimum value " << minf << " at " << std::endl;
 				for (int i = 0; i < solveIndex; i++) {
 					std::cout << "theta(" << i << ")=" << x[i] << std::endl;
 				}
+				std::vector<double> myTempVector;
+				OLGModel::printStatus(x, -1, model(x, myTempVector));
 			}
 			std::vector<double> newX(solveIndex + 2);
 			newX[0] = MAX(x[0] - 0.01,0);
@@ -152,7 +161,7 @@ int main(int argc, char *argv[])
 			x.clear();
 			x.resize(solveIndex + 2);
 			x = newX;
-			//	model.printWages();
+			model.printWages();
 		}
 	}
 

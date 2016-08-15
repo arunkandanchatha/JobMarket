@@ -11,7 +11,7 @@ private:
 	double calculatedF(double newTheta) final;
 
 public:
-	deHaanMatching(double fTarget, double etaTarget);
+	deHaanMatching(double fTarget);
 	~deHaanMatching();
 
 	double f() final;
