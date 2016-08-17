@@ -177,8 +177,8 @@ double OLGModel::calcU(int state, VectorXd &Up1, VectorXd &Ep1) {
 	double total = 0;
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
-//	for (unsigned int i = 0; i < m_sp->numStates(); i++) {
-	for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
+	for (int i = MAX(0,state-MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(),state+MAX_SHOCKS_PER_MONTH+1); i++) {
+//	for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
 		double nextProb = nextPDF(i, 0);
 		double calcF = m_f->calculatedF(m_thetas[i]);
 		double nextVal = pow(Up1(i) + calcF*(Ep1(i) - Up1(i)), D_RHO);
@@ -193,8 +193,8 @@ double OLGModel::calcE(int state, double delta, VectorXd &Up1, VectorXd &Ep1) {
 	double total = 0;
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
-	//	for (unsigned int i = 0; i < m_sp->numStates(); i++) {
-	for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
+//		for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
 		total += nextPDF(i, 0)*pow(Ep1(i) - m_Es*(Ep1(i) - Up1(i)), D_RHO);
 	}
 	total *= D_BETA;
@@ -206,8 +206,8 @@ double OLGModel::calcW(int state, double delta, VectorXd &Wp1) {
 	double total = 0;
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
-	//	for (unsigned int i = 0; i < m_sp->numStates(); i++) {
-	for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
+		//for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
 		total += nextPDF(i, 0)*(1 - m_Es)*Wp1(i);
 	}
 	double retVal = m_Y(state) - D_b - delta + D_BETA*total;
@@ -240,8 +240,8 @@ double OLGModel::partialE_partialDel(int state, double x, VectorXd& Up1, VectorX
 	double total = 0;
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
-	//	for (unsigned int i = 0; i < m_sp->numStates(); i++) {
-	for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
+		//for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
 		total += nextPDF(i, 0)*pow(Ep1(i) - m_Es*(Ep1(i) - Up1(i)), D_RHO);
 	}
 	total *= D_BETA;

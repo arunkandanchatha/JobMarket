@@ -1,9 +1,9 @@
 #pragma once
 
 #include "stdafx.h"
+#define MAX_SHOCKS_PER_MONTH (5)
 
 typedef Matrix<double, Dynamic, 2> pdfMatrix;
-class OLGModel;
 
 class ShockProcess
 {

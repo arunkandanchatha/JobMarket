@@ -114,4 +114,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\..\..\..\..\OneDrive\JMP Libraries\eigen\debug\msvc\eigen.natvis" />
+  </ItemGroup>
 </Project>

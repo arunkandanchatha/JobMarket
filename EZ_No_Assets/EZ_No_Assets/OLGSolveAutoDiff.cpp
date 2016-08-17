@@ -116,9 +116,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 								adouble total = 0;
 
 								VectorXd nextPDF = m_conditionalProbs.row(j);
-								for (unsigned int ii = ((j == 0) ? 0 : (j - 1)); 
-										ii < ((j == (numStates - 1)) ? numStates : (j + 2));
-										ii++) {
+								for (int ii = MAX(0, j - MAX_SHOCKS_PER_MONTH); ii < MIN(numStates, j + MAX_SHOCKS_PER_MONTH + 1); ii++) {
 									total += nextPDF(ii)*pow(latestE[ii] - m_s*(latestE[ii] - latestU[ii]), D_RHO);
 								}
 								total *= D_BETA;
@@ -130,9 +128,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 								adouble total = 0;
 
 								VectorXd nextPDF = m_conditionalProbs.row(j);
-								for (unsigned int ii = ((j == 0) ? 0 : (j - 1));
-									ii < ((j == (numStates - 1)) ? numStates : (j + 2));
-									ii++) {
+								for (int ii = MAX(0, j - MAX_SHOCKS_PER_MONTH); ii < MIN(numStates, j + MAX_SHOCKS_PER_MONTH + 1); ii++) {
 									double nextProb = nextPDF(ii);
 									adouble calcF = 19.89107045*m_thetas[ii] / pow(1 + pow(19.89107045*m_thetas[ii], m_parameter), 1.0 / m_parameter);
 									adouble nextVal = pow(latestU[ii] + calcF*(latestE[ii] - latestU[ii]), D_RHO);
@@ -147,9 +143,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 								adouble total = 0;
 
 								VectorXd nextPDF = m_conditionalProbs.row(j);
-								for (unsigned int ii = ((j == 0) ? 0 : (j - 1));
-								ii < ((j == (numStates - 1)) ? numStates : (j + 2));
-									ii++) {
+								for (int ii = MAX(0, j - MAX_SHOCKS_PER_MONTH); ii < MIN(numStates, j + MAX_SHOCKS_PER_MONTH + 1); ii++) {
 									total += nextPDF(ii)*(1 - m_s)*latestW[ii];
 								}
 								calcW = prodInState - D_b - arg + D_BETA*total;
@@ -160,9 +154,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 								adouble total = 0;
 
 								VectorXd nextPDF = m_conditionalProbs.row(j);
-								for (unsigned int ii = ((j == 0) ? 0 : (j - 1));
-								ii < ((j == (numStates - 1)) ? numStates : (j + 2));
-									ii++) {
+								for (int ii = MAX(0, j - MAX_SHOCKS_PER_MONTH); ii < MIN(numStates, j + MAX_SHOCKS_PER_MONTH + 1); ii++) {
 									double nextProb = nextPDF(ii);
 									total += nextProb*pow(latestE[ii] - m_s*(latestE[ii] - latestU[ii]), D_RHO);
 								}

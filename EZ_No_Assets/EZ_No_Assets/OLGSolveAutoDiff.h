@@ -3,6 +3,7 @@
 using adept::adouble;
 
 #include <vector>
+#include "macros.h"
 #include "OLGModel.h"
 
 class OLGSolveAutoDiff

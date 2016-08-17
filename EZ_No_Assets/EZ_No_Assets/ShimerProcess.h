@@ -12,5 +12,6 @@ private:
 	const double m_gamma;
 
 	void calculateConditionalProbabilities();
+	void setProbMatrix(int currentState, int remainingShocks, double overallMult, double cumeProb, VectorXd& transProb, VectorXd& values);
 };
 

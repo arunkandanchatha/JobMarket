@@ -194,6 +194,9 @@
     <ClCompile Include="SimulatedAnnealingInterface.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="..\..\..\..\..\OneDrive\JMP Libraries\eigen\debug\msvc\eigen.natvis" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

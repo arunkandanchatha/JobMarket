@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
 			x.clear();
 			x.resize(solveIndex + 2);
 			x = newX;
-			model.printWages();
+			//model.printWages();
 		}
 	}
 
