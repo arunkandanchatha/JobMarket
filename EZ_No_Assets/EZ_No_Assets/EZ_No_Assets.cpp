@@ -9,6 +9,7 @@
 #include "ShimerProcess.h"
 #include "nlopt.hpp"
 #include "SimAnnealForOLGModel.h"
+#include "adept_source.h"
 //#include "vld.h"
 
 double myConstraint(const std::vector<double> &x, std::vector<double> &grad, void*data);
@@ -36,8 +37,8 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		std::cout << "invoke as follows:" << std::endl
-			<< "./executable <s|i|e> gens states fTarget [thetaGuess.file]" << std::endl
-			<< "where s-solve (simulated annealing), i-solve (ISRES) and e-elasticity" << std::endl;
+			<< "./executable <s|c|e|a> gens states fTarget [thetaGuess.file]" << std::endl
+			<< "where s-solve (simulated annealing), c-solve (COBYLA) and e-elasticity" << std::endl;
 		return 1;
 	}
 
@@ -54,7 +55,7 @@ int main(int argc, char *argv[])
 		NoShocksProcess p;
 
 		//create model with N generations, F matching function
-		OLGModel model(numGens, 1.0, 0.034, myF, p, 1 - D_ETA);
+		OLGModel model(numGens, 1.0, 0.034, myF, p, 1 - D_ETA, false);
 		model.solveWages();
 		model.printWages();
 		//solve for elasticity
@@ -62,26 +63,30 @@ int main(int argc, char *argv[])
 		std::cout << myF.getParameter() << "," << model.elasticityWRTs() << std::endl;
 
 	}else{
+		bool autoDiff = false;
+		if (which == 'a') {
+			autoDiff = true;
+		}
 		std::vector<double> x(numStates);
 		if (readFile) {
 			initialize(x, argv[5]);
 		}
 		else {
 			x.resize(3);
-			double midX = 0.5;
-			for (int i = 0; i < 3; i++) {
+			double midX = 0.50;
+			for (int i = 0; i < x.size(); i++) {
 				x[i] = midX + 0.01*(i - 1);
 			}
 		}
 		for (int solveIndex = x.size(); solveIndex <= numStates; solveIndex += 2) {
 			//create matching function targetting f=X and eta=Y
-			deHaanMatching myF(1.6);
+			deHaanMatching myF(fTarget);
 
 			//create shock process
 			ShimerProcess p((solveIndex - 1) / 2, 0.0165/sqrt(3), (4.0 / 3)/((solveIndex - 1) / 2));
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, 1.0, D_S, myF, p, 1 - D_ETA);
+			OLGModel model(numGens, 1.0, D_S, myF, p, 1 - D_ETA,autoDiff);
 
 			if (which == 's') {
 				const double targ = 0;
@@ -97,6 +102,9 @@ int main(int argc, char *argv[])
 			else {
 				nlopt::algorithm algoChoice;
 				switch (which) {
+				case 'a':
+					algoChoice = nlopt::LD_MMA;
+					break;
 				case 'c':
 					algoChoice = nlopt::LN_COBYLA;
 					break;
@@ -110,8 +118,8 @@ int main(int argc, char *argv[])
 
 				nlopt::opt opt(algoChoice, solveIndex);
 				opt.set_maxeval(solveIndex * 250);
-				opt.set_lower_bounds(x[0] / 2.0);
-				opt.set_upper_bounds(2 * x[solveIndex - 1]);
+				opt.set_lower_bounds(readFile ? (x[0] / 2.0) : 0.00001);
+				opt.set_upper_bounds(readFile ? (2 * x[solveIndex - 1]) : 5);
 				opt.set_min_objective(OLGModel::wrap, &model);
 				opt.set_population(5 * solveIndex);
 
@@ -149,7 +157,7 @@ int main(int argc, char *argv[])
 					std::cout << "theta(" << i << ")=" << x[i] << std::endl;
 				}
 				std::vector<double> myTempVector;
-				OLGModel::printStatus(x, -1, model(x, myTempVector));
+				OLGModel::printStatus(x, -1, minf);
 			}
 			std::vector<double> newX(solveIndex + 2);
 			newX[0] = MAX(x[0] - 0.01,0);

@@ -2,7 +2,10 @@
 
 
 
-OLGSolveAutoDiff::OLGSolveAutoDiff(int gens, std::vector<double> ys):m_gens(gens)
+OLGSolveAutoDiff::OLGSolveAutoDiff(int gens, std::vector<double> ys, MatrixXd conditionalProbs, double parameter,
+	double bargaining, double s, MatrixXd &wages)
+	:m_gens(gens),m_conditionalProbs(conditionalProbs), m_parameter(parameter), m_bargaining(bargaining),m_s(s),
+	m_wgs(&wages)
 {
 	m_Y.resize(ys.size());
 	m_Y = ys;
@@ -13,26 +16,46 @@ OLGSolveAutoDiff::~OLGSolveAutoDiff()
 {
 }
 
-double OLGSolveAutoDiff::solveProblem(std::vector<double> x) {
+double OLGSolveAutoDiff::solveProblem(std::vector<double>& x) {
+	std::vector<double> grad(x.size());
+	return solveProblem(x, grad);
+}
+
+double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<double>& grad) {
 
 	//setup input
-	int numStates = x.size();
+	int numStates = xx.size();
 	std::vector<adouble> m_thetas(numStates);
-	for (unsigned int i = 0; i < x.size(); i++) {
-		m_thetas[i] = x[i];
+	for (unsigned int i = 0; i < xx.size(); i++) {
+		m_thetas[i] = xx[i];
+	}
+
+	stack_.new_recording();
+
+	std::vector<std::vector<adouble>> W_vals;
+	std::vector<std::vector<adouble>> wages;
+	W_vals.resize(m_gens);
+	wages.resize(m_gens);
+	for (int i = 0; i < m_gens; i++) {
+		W_vals[i].resize(numStates);
+		wages[i].resize(numStates);
 	}
 
 	//now, solve for wages
 	{
 		std::vector<adouble> E_vals(numStates);
 		std::vector<adouble> U_vals(numStates);
-		std::vector<adouble> W_vals(numStates);
-		std::vector<adouble> wages(numStates);
 		for (unsigned int i = m_gens - 1; i < m_gens; i--) {
-			std::vector<adouble> latestE = E_vals;
-			std::vector<adouble> latestU = U_vals;
-			std::vector<adouble> latestW = W_vals;
-			std::vector<adouble> latestWages = wages;
+			std::vector<adouble> latestE(numStates);
+			latestE = E_vals;
+			std::vector<adouble> latestU(numStates);
+			latestU = U_vals;
+			std::vector<adouble> latestW(numStates);
+			std::vector<adouble> latestWages(numStates);
+			if (i < m_gens - 1) {
+				latestW = W_vals[i + 1];
+				latestWages = wages[i + 1];
+			}
 			for (int j = 0; j < numStates; j++) {
 #if 0
 				std::cout << i << ":" << j << std::endl;
@@ -40,8 +63,8 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double> x) {
 				if (i == m_gens - 1) {
 					E_vals[j] = (1 - D_BETA)*pow(D_b, D_RHO);
 					U_vals[j] = (1 - D_BETA)*pow(D_b, D_RHO);
-					W_vals[j] = 0;
-					wages[j] = D_b;
+					W_vals[i][j] = 0;
+					wages[i][j] = D_b;
 					continue;
 				}
 				double prodInState = m_Y[j];
@@ -52,10 +75,10 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double> x) {
 					double upbnd = prodInState - D_b;
 
 					if (lwbnd == upbnd) {
-						wages[j] = latestWages[j];
+						wages[i][j] = latestWages[j];
 						U_vals[j] = latestU[j];
 						E_vals[j] = latestE[j];
-						W_vals[j] = latestW[j];
+						W_vals[i][j] = latestW[j];
 						continue;
 					}
 
@@ -86,9 +109,104 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double> x) {
 					int status;
 					adouble value;
 
-					for (int convCounter = 0; convCounter < 50; convCounter++) {
+					for (int convCounter = 0; convCounter < 100; convCounter++) {
 						if (convCounter > 0) {
-							value = f(arg);
+							adouble calcE;
+							{
+								adouble total = 0;
+
+								VectorXd nextPDF = m_conditionalProbs.row(j);
+								for (unsigned int ii = ((j == 0) ? 0 : (j - 1)); 
+										ii < ((j == (numStates - 1)) ? numStates : (j + 2));
+										ii++) {
+									total += nextPDF(ii)*pow(latestE[ii] - m_s*(latestE[ii] - latestU[ii]), D_RHO);
+								}
+								total *= D_BETA;
+								calcE = pow((1 - D_BETA)*pow(D_b + arg, D_RHO) + total, 1.0 / D_RHO);
+								E_vals[j] = calcE;
+							}
+							adouble calcU;
+							{
+								adouble total = 0;
+
+								VectorXd nextPDF = m_conditionalProbs.row(j);
+								for (unsigned int ii = ((j == 0) ? 0 : (j - 1));
+									ii < ((j == (numStates - 1)) ? numStates : (j + 2));
+									ii++) {
+									double nextProb = nextPDF(ii);
+									adouble calcF = 19.89107045*m_thetas[ii] / pow(1 + pow(19.89107045*m_thetas[ii], m_parameter), 1.0 / m_parameter);
+									adouble nextVal = pow(latestU[ii] + calcF*(latestE[ii] - latestU[ii]), D_RHO);
+									total += nextProb*nextVal;
+								}
+								total *= D_BETA;
+								calcU = pow((1 - D_BETA)*pow(D_b, D_RHO) + total, 1.0 / D_RHO);
+								U_vals[j] = calcU;
+							}
+							adouble calcW;
+							{
+								adouble total = 0;
+
+								VectorXd nextPDF = m_conditionalProbs.row(j);
+								for (unsigned int ii = ((j == 0) ? 0 : (j - 1));
+								ii < ((j == (numStates - 1)) ? numStates : (j + 2));
+									ii++) {
+									total += nextPDF(ii)*(1 - m_s)*latestW[ii];
+								}
+								calcW = prodInState - D_b - arg + D_BETA*total;
+								W_vals[i][j] = calcW;
+							}
+							adouble partialE_partialDel;
+							{
+								adouble total = 0;
+
+								VectorXd nextPDF = m_conditionalProbs.row(j);
+								for (unsigned int ii = ((j == 0) ? 0 : (j - 1));
+								ii < ((j == (numStates - 1)) ? numStates : (j + 2));
+									ii++) {
+									double nextProb = nextPDF(ii);
+									total += nextProb*pow(latestE[ii] - m_s*(latestE[ii] - latestU[ii]), D_RHO);
+								}
+								total *= D_BETA;
+
+
+								adouble insideBracket = (1 - D_BETA)*pow(D_b + arg, D_RHO) + total;
+								partialE_partialDel = pow(insideBracket, 1.0 / D_RHO - 1)*(1 - D_BETA)*pow(D_b + arg, D_RHO - 1);
+							}
+
+							adouble origRetVal = calcE - calcU - m_bargaining / (1 - m_bargaining)*calcW*partialE_partialDel;
+							adouble retVal = ABS(origRetVal);
+
+							if (retVal < 0) {
+								std::cout << "OLGSolveAutoDiff.cpp-solve(): return value < 0. How is this possible?" << std::endl;
+								std::cout << ABS(origRetVal) << std::endl;
+								std::cout << adept::value(origRetVal) << ":" << (adept::value(origRetVal) < 0) << ":" << adept::value(retVal) << std::endl;
+								exit(-1);
+							}
+
+							value = retVal;
+#if 0
+							std::cout.precision(15);
+							std::cout << "OLGSolveAutoDiff: f(" << i << "," << j << "," << adept::value(arg) << ")=" << adept::value(retVal) << std::endl;
+							if (i == 0 && j == 0) {
+								std::cout << "E: ";
+								for (int ii = 0; ii < numStates; ii++) {
+									std::cout << latestE[ii] << ",";
+								}
+								std::cout << std::endl;
+								std::cout << "U: ";
+								for (int ii = 0; ii < numStates; ii++) {
+									std::cout << latestU[ii] << ",";
+								}
+								std::cout << std::endl;
+								std::cout << "W: ";
+								for (int ii = 0; ii < numStates; ii++) {
+									std::cout << W_vals[i+1][ii] << ",";
+								}
+								std::cout << std::endl;
+								std::cout << calcE << ":" << calcU << ":" << calcW << ":" << partialE_partialDel << ":" << m_bargaining << std::endl;
+								exit(-1);
+							}
+#endif
 						}
 						status = convCounter;
 
@@ -278,6 +396,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double> x) {
 							if (ABS(x - midpoint) <= (tol2 - 0.5 * (b - a)))
 							{
 								status = 0;
+								arg = x;
 								break;
 							}
 							//
@@ -367,16 +486,46 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double> x) {
 
 							continue;
 						}
-					}
+					}//loop through 50
+					//at this point, arg is the correct wage
+					wages[i][j] = D_b + arg;
 				}
 			}
 		}
 	}
 
 	//finally, return distance
-	double retVal = 0;
-	for (int i = 0; i < x.size(); i++) {
-		retVal += pow(D_C / D_BETA - m_f->calculatedF(m_thetas[i]) / m_thetas[i] * expectedW(i), 2);
+	adouble retVal = 0;
+	for (int i = 0; i < xx.size(); i++) {
+		int state = i;
+		adouble expectedW = 0;
+		{
+			adouble total = 0;
+			VectorXd temp = m_conditionalProbs.row(state);
+			for (int ii = 0; ii < numStates; ii++) {
+				adouble tempVal = 0;
+				for (unsigned int j = 0; j < m_gens; j++) {
+					tempVal += W_vals[j][ii];
+				}
+				tempVal /= m_gens;
+				total += tempVal * temp(ii);
+			}
+			expectedW = total;
+		}
+
+		adouble calculatedF = 19.89107045*m_thetas[i] / pow(1 + pow(19.89107045*m_thetas[i], m_parameter), 1.0 / m_parameter);
+		retVal += pow(D_C / D_BETA - calculatedF / m_thetas[i] * expectedW, 2);
 	}
-	return sqrt(retVal);
+	retVal.set_gradient(1.0);
+	stack_.compute_adjoint();
+	for (int i = 0; i < xx.size(); i++) {
+		grad[i] = m_thetas[i].get_gradient();
+	}
+
+	for (int i = 0; i < m_gens; i++) {
+		for (int j = 0; j < numStates; j++) {
+			(*m_wgs)(i,j) = adept::value(wages[i][j]);
+		}
+	}
+	return value(retVal);
 }

@@ -3,12 +3,15 @@
 #include "stdafx.h"
 
 typedef Matrix<double, Dynamic, 2> pdfMatrix;
+class OLGModel;
 
 class ShockProcess
 {
 public:
 	ShockProcess(unsigned int states);
 	~ShockProcess();
+
+	MatrixXd getProbMatrix();
 
 	pdfMatrix nextPeriodPDF(unsigned int state);
 	const VectorXd* states();

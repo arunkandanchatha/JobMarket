@@ -36,3 +36,8 @@ void ShockProcess::printStates()
 	}
 	return;
 }
+
+MatrixXd ShockProcess::getProbMatrix() {
+	return m_conditionalProbs;
+}
+
