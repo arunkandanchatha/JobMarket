@@ -4,7 +4,7 @@ deHaanMatching::deHaanMatching(double parameter) : MatchingFunction(D_MY_PARAMET
 	m_theta = 1;
 }
 
-deHaanMatching::deHaanMatching(deHaanMatching &orig) : MatchingFunction(orig.m_parameter), m_mu(orig.m_mu)
+deHaanMatching::deHaanMatching(deHaanMatching &orig) : MatchingFunction(orig.m_parameter), m_mu(orig.m_mu), m_alpha(orig.m_alpha)
 {
 	m_theta = orig.m_theta;
 }
