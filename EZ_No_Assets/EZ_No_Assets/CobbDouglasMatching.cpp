@@ -15,6 +15,12 @@ CobbDouglasMatching::~CobbDouglasMatching()
 {
 }
 
+double CobbDouglasMatching::getElasticity(double x)
+{
+	return m_parameter;
+}
+
+
 double CobbDouglasMatching::calculatedF(double x)
 {
 	return m_mu*pow(x, m_parameter);

@@ -3,8 +3,8 @@
 
 
 OLGSolveAutoDiff::OLGSolveAutoDiff(int gens, std::vector<double> ys, MatrixXd conditionalProbs, double parameter,
-	double bargaining, double s, MatrixXd &wages)
-	:m_gens(gens),m_conditionalProbs(conditionalProbs), m_parameter(parameter), m_bargaining(bargaining),m_s(s),
+	/*std::vector<double> bargaining,*/ double s, MatrixXd &wages)
+	:m_gens(gens),m_conditionalProbs(conditionalProbs), m_parameter(parameter), /*m_bargaining(bargaining),*/m_s(s),
 	m_wgs(&wages)
 {
 	m_Y.resize(ys.size());
@@ -16,12 +16,12 @@ OLGSolveAutoDiff::~OLGSolveAutoDiff()
 {
 }
 
-double OLGSolveAutoDiff::solveProblem(std::vector<double>& x) {
+double OLGSolveAutoDiff::solveProblem(std::vector<double>& x, std::vector<double>& bargaining) {
 	std::vector<double> grad(x.size());
-	return solveProblem(x, grad);
+	return solveProblem(x, grad, bargaining);
 }
 
-double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<double>& grad) {
+double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<double>& grad, std::vector<double>& bargaining) {
 
 	//setup input
 	int numStates = xx.size();
@@ -31,6 +31,11 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 	}
 
 	stack_.new_recording();
+
+	std::vector<adouble> m_bargaining(xx.size());
+	for (unsigned int i = 0; i < xx.size(); i++) {
+		m_bargaining[i] = bargaining[i];
+	}
 
 	std::vector<std::vector<adouble>> W_vals;
 	std::vector<std::vector<adouble>> wages;
@@ -130,7 +135,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 								VectorXd nextPDF = m_conditionalProbs.row(j);
 								for (int ii = MAX(0, j - MAX_SHOCKS_PER_MONTH); ii < MIN(numStates, j + MAX_SHOCKS_PER_MONTH + 1); ii++) {
 									double nextProb = nextPDF(ii);
-									adouble calcF = 19.89107045*m_thetas[ii] / pow(1 + pow(19.89107045*m_thetas[ii], m_parameter), 1.0 / m_parameter);
+									adouble calcF = D_MY_ALPHA*D_MY_MU*m_thetas[ii] / pow(1 + pow(D_MY_MU*m_thetas[ii], m_parameter), 1.0 / m_parameter);
 									adouble nextVal = pow(latestU[ii] + calcF*(latestE[ii] - latestU[ii]), D_RHO);
 									total += nextProb*nextVal;
 								}
@@ -165,7 +170,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 								partialE_partialDel = pow(insideBracket, 1.0 / D_RHO - 1)*(1 - D_BETA)*pow(D_b + arg, D_RHO - 1);
 							}
 
-							adouble origRetVal = calcE - calcU - m_bargaining / (1 - m_bargaining)*calcW*partialE_partialDel;
+							adouble origRetVal = calcE - calcU - m_bargaining[j] / (1 - m_bargaining[j])*calcW*partialE_partialDel;
 							adouble retVal = ABS(origRetVal);
 
 							if (retVal < 0) {
@@ -505,7 +510,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 			expectedW = total;
 		}
 
-		adouble calculatedF = 19.89107045*m_thetas[i] / pow(1 + pow(19.89107045*m_thetas[i], m_parameter), 1.0 / m_parameter);
+		adouble calculatedF = D_MY_ALPHA*D_MY_MU*m_thetas[i] / pow(1 + pow(D_MY_MU*m_thetas[i], m_parameter), 1.0 / m_parameter);
 		retVal += pow(D_C / D_BETA - calculatedF / m_thetas[i] * expectedW, 2);
 	}
 	retVal.set_gradient(1.0);

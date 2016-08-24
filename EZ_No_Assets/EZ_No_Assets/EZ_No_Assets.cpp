@@ -37,60 +37,68 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		std::cout << "invoke as follows:" << std::endl
-			<< "./executable <s|c|e|a> gens states fTarget [thetaGuess.file]" << std::endl
-			<< "where s-solve (simulated annealing), c-solve (COBYLA) and e-elasticity" << std::endl;
+			<< "./executable <s|c|e|a|x> gens states fTarget [thetaGuess.file]" << std::endl
+			<< "where " << std::endl
+			<< "    s-solve (simulated annealing)" << std::endl
+			<< "    c-solve (COBYLA)" << std::endl
+			<< "    e-elasticity" << std::endl
+			<< "    x-simulate only" << std::endl;
 		return 1;
 	}
 
 	std::cout << "Number of Generations = " << numGens << std::endl;
 	std::cout << "Number of States (always odd) = " << numStates << std::endl;
 
-	if(which == 'e')
+	std::vector<double> x(numStates);
+
+	if (which == 'e')
 	{
-		//solve for all wages
-		//create matching function targetting f=X and eta=Y
-		CobbDouglasMatching myF(fTarget, 1-D_ETA);
+		for (int i = 1; i < 81; i++) {
+			//solve for all wages
+			//create matching function targetting f=X and eta=Y
+			CobbDouglasMatching myF(fTarget, 0.01*i/*D_ETA*/);
 
-		//create shock process
-		NoShocksProcess p;
+			//create shock process
+			NoShocksProcess p;
 
-		//create model with N generations, F matching function
-		OLGModel model(numGens, 1.0, 0.034, myF, p, 1 - D_ETA, false);
-		model.solveWages();
-		model.printWages();
-		//solve for elasticity
-		std::cout << myF.getParameter() << "," << model.elasticityWRTymb() << std::endl;
-		std::cout << myF.getParameter() << "," << model.elasticityWRTs() << std::endl;
-
-	}else{
-		bool autoDiff = false;
-		if (which == 'a') {
-			autoDiff = true;
+			//create model with N generations, F matching function
+			OLGModel model(numGens, 1.0, D_S, myF, p, 1 - D_ETA, false);
+			model.solveWages();
+			//model.printWages();
+			//solve for elasticity
+			std::cout << myF.getParameter() << "," << model.elasticityWRTymb() << std::endl;
+			//std::cout << myF.getParameter() << "," << model.elasticityWRTs() << std::endl;
 		}
-		std::vector<double> x(numStates);
-		if (readFile) {
-			initialize(x, argv[5]);
+		return 1;
+	}
+	bool autoDiff = false;
+	if (which == 'a') {
+		autoDiff = true;
+	}
+	if (readFile) {
+		initialize(x, argv[5]);
+	}
+	else {
+		x.resize(3);
+		double midX = 0.50;
+		for (int i = 0; i < x.size(); i++) {
+			x[i] = midX + 0.01*(i - 1);
 		}
-		else {
-			x.resize(3);
-			double midX = 0.50;
-			for (int i = 0; i < x.size(); i++) {
-				x[i] = midX + 0.01*(i - 1);
-			}
-		}
+	}
+	if (which != 'x') {
 		for (int solveIndex = x.size(); solveIndex <= numStates; solveIndex += 2) {
 			//create matching function targetting f=X and eta=Y
 			deHaanMatching myF(fTarget);
 
 			//create shock process
-			ShimerProcess p((solveIndex - 1) / 2, 0.0165/sqrt(3), (4.0 / 3)/((solveIndex - 1) / 2));
+			ShimerProcess p((solveIndex - 1) / 2, 0.0165, 4.0 / ((solveIndex - 1) / 2));
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, 1.0, D_S, myF, p, 1 - D_ETA,autoDiff);
+			OLGModel model(numGens, 1.0, D_S, myF, p, 1 - D_ETA, autoDiff);
 
 			if (which == 's') {
 				const double targ = 0;
-				SimAnnealForOLGModel worldSolve = SimAnnealForOLGModel(x, targ, 1, 1.0E-8, model, (x[solveIndex - 1] - x[0]) / (solveIndex - 1) / 5, solveIndex*1000);
+				SimAnnealForOLGModel worldSolve = SimAnnealForOLGModel(x, targ, 1, 1.0E-8, model, (x[solveIndex - 1] - x[0]) / (solveIndex - 1) / 5, solveIndex * 1000);
 				std::vector<double> *soln = worldSolve.solve();
 				std::vector<double> myTempVector;
 				OLGModel::printStatus(*soln, -1, model(*soln, myTempVector));
@@ -130,7 +138,7 @@ int main(int argc, char *argv[])
 						opt.add_inequality_constraint(myConstraint, &data[i], 0);
 					}
 				}
-				opt.set_stopval(5e-3);
+				opt.set_stopval(1e-4);
 
 				double minf = 200;
 				nlopt::result result;
@@ -160,7 +168,7 @@ int main(int argc, char *argv[])
 				OLGModel::printStatus(x, -1, minf);
 			}
 			std::vector<double> newX(solveIndex + 2);
-			newX[0] = MAX(x[0] - 0.01,0);
+			newX[0] = MAX(x[0] - 0.01, 0);
 			for (int myIndex = 0; myIndex < solveIndex; myIndex++) {
 				newX[myIndex + 1] = x[myIndex];
 			}
@@ -171,8 +179,66 @@ int main(int argc, char *argv[])
 			x = newX;
 			//model.printWages();
 		}
-	}
 
+		return 1;
+	}
+	//now we simulate
+	srand(1234);
+
+	//create shock process
+	ShimerProcess p((x.size() - 1) / 2, 0.0165, 4.0 / ((x.size() - 1) / 2));
+	p.printMatrix();
+	exit(-1);
+
+	//create matching
+	deHaanMatching myF(fTarget);
+
+	//simulate 100 times
+	std::cout << "simulation      u     theta (state)" << std::endl;
+	for (int i = 0; i < 10000; i++) {
+		//choose random starting unemployment between 0 and 1
+		double u = rand() / double(RAND_MAX);
+		//choose random starting "shock" state
+		double randNum = rand() / double(RAND_MAX);
+		int currState = floor((x.size()-1) * randNum);
+
+		double currTheta = x[currState];
+
+		//std::cout << i << "    " << u << "     " << currTheta << " " << currState << std::endl;
+		pdfMatrix nextPDF = p.nextPeriodPDF(currState);
+		//each time, simulate 5000 periods
+		for (int j = 0; j < 5000; j++) {
+			//update unemployment rate
+			double loseJobs = D_S*(1 - u);
+			double gainJobs = myF.calculatedF(currTheta)*u;
+			double changeU = loseJobs - gainJobs;
+			u += changeU;
+			if (j > 4400) {
+				std::cout << i << "    " << u << "     " << currTheta << "  " << currState << "    " << std::endl;
+			}
+
+			double randNumForShocks = rand() / double(RAND_MAX+1);
+			double cumeTotal = 0;
+			bool found = false;
+			for (int k = MAX(currState - MAX_SHOCKS_PER_MONTH, 0); 
+				k < MIN(x.size(),currState + MAX_SHOCKS_PER_MONTH + 1); k++) {
+				cumeTotal += nextPDF(k, 0);
+				if (randNumForShocks <= cumeTotal) {
+					found = true;
+					currState = k;
+					currTheta = x[currState];
+					nextPDF = p.nextPeriodPDF(currState);
+					break;
+				}
+			}
+			if (!found) {
+				std::cout << "ERROR! EZ_No_Assets.cpp-main(): Couldn't find new state for randNum=" << randNumForShocks << std::endl;
+				std::cout << "     CumeTotal = " << cumeTotal << std::endl;
+				std::cout << "     State = " << currState << std::endl;
+				exit(-1);
+			}
+		}
+	}
 	return 0;
 }
 

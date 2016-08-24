@@ -9,12 +9,12 @@ using adept::adouble;
 class OLGSolveAutoDiff
 {
 public:
-	OLGSolveAutoDiff(int gens, std::vector<double> ys, MatrixXd conditionalProbs, double parameter, double bargaining,
-		double s, MatrixXd &wages);
+	OLGSolveAutoDiff(int gens, std::vector<double> ys, MatrixXd conditionalProbs, double parameter,
+		/*std::vector<double> bargaining,*/ double s, MatrixXd &wages);
 	~OLGSolveAutoDiff();
 
-	double solveProblem(std::vector<double>& input);
-	double solveProblem(std::vector<double>& input, std::vector<double>&grad);
+	double solveProblem(std::vector<double>& input, std::vector<double>& bargaining);
+	double solveProblem(std::vector<double>& input, std::vector<double>&grad, std::vector<double>& bargaining);
 
 private:
 	const int m_gens;
@@ -25,7 +25,6 @@ private:
 	adept::Stack stack_;
 
 	adouble m_parameter;
-	adouble m_bargaining;
 	adouble m_s;
 };
 

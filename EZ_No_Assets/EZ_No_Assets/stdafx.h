@@ -24,3 +24,4 @@
 // TODO: reference additional headers your program requires here
 #include <Eigen/Dense>
 using namespace Eigen;
+#include <omp.h>

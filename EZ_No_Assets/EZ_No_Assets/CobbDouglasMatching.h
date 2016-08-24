@@ -9,6 +9,7 @@ private:
 	CobbDouglasMatching(CobbDouglasMatching &orig);
 	const double m_mu;
 	double calculatedF(double newTheta) final;
+	double getElasticity(double newTheta) final;
 
 public:
 	CobbDouglasMatching(double fTarget, double etaTarget);

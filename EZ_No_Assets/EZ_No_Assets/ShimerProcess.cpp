@@ -58,16 +58,16 @@ void ShimerProcess::calculateConditionalProbabilities()
 	//alternatively, 1/3 of a shock per month. We can find the probability
 	//of having x shocks using the formula:
 	//         P(X=x)=exp(-1/3)(1/3)^(x)/(x!)
-	if ((MAX_SHOCKS_PER_MONTH + 1) != 6) {
-		std::cout << "ERROR! ShimerProcess.cpp:calculateConditionalProbabilities() - expect only 5 shocks,"
+	if ((MAX_SHOCKS_PER_MONTH + 1) != 11) {
+		std::cout << "ERROR! ShimerProcess.cpp:calculateConditionalProbabilities() - expect only 10 shocks,"
 			<< " as that is as many entries in factorial array as we have entered." << std::endl;
 		exit(-1);
 	}
 	std::vector<double> shockProb(MAX_SHOCKS_PER_MONTH+1);
-	int fact[MAX_SHOCKS_PER_MONTH+1] = { 1,1,2,6,24,120};
+	int fact[MAX_SHOCKS_PER_MONTH+1] = { 1,1,2,6,24,120,720,5040,40320,362880,3628800};
 	double cumeVal = 0;
 	for (int i = 0; i < MAX_SHOCKS_PER_MONTH; i++) {
-		shockProb[i] = exp(-1.0 / 3)*pow(1.0 / 3, i) / fact[i];
+		shockProb[i] = exp(-4.0 / 3)*pow(4.0 / 3, i) / fact[i];
 		cumeVal += shockProb[i];
 	}
 	shockProb[MAX_SHOCKS_PER_MONTH] = 1 - cumeVal;
@@ -117,4 +117,25 @@ void ShimerProcess::setProbMatrix(int currentState, int remainingShocks, double 
 		setProbMatrix(currentState - 1, remainingShocks - 1, overallMult, cumeProb * (1-transProb[currentState]), transProb, values);
 	}
 	return;
+}
+
+void ShimerProcess::printMatrix() {
+
+	std::cout << "state,";
+	int maxVal = m_conditionalProbs.rows();
+	for (int i = 0; i < maxVal; i++) {
+		std::cout << i;
+		if (i != m_conditionalProbs.size() - 1) {
+			std::cout << ",";
+		}
+	}
+	std::cout << std::endl;
+
+	for (int i = 0; i < maxVal; i++) {
+		std::cout << i << ",";
+		for (int j = 0; j < maxVal-1; j++) {
+			std::cout << m_conditionalProbs(i, j) << ",";
+		}
+		std::cout << m_conditionalProbs(i, maxVal-1) << std::endl;
+	}
 }

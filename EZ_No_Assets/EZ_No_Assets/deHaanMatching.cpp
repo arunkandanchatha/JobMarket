@@ -1,7 +1,7 @@
 #include "deHaanMatching.h"
-deHaanMatching::deHaanMatching(double parameter) : MatchingFunction(parameter), m_mu(19.89107045)
+deHaanMatching::deHaanMatching(double parameter) : MatchingFunction(D_MY_PARAMETER), m_mu(D_MY_MU), m_alpha(D_MY_ALPHA)
 {
-	m_theta = 0.5;
+	m_theta = 1;
 }
 
 deHaanMatching::deHaanMatching(deHaanMatching &orig) : MatchingFunction(orig.m_parameter), m_mu(orig.m_mu)
@@ -16,7 +16,13 @@ deHaanMatching::~deHaanMatching()
 
 double deHaanMatching::calculatedF(double x)
 {
-	return m_mu*x / pow(1 + pow(m_mu*x, m_parameter), 1.0 / m_parameter);
+	return m_alpha*m_mu*x / pow(1 + pow(m_mu*x, m_parameter), 1.0 / m_parameter);
+}
+
+double deHaanMatching::getElasticity(double x)
+{
+//	return 1 / (1 + pow(m_mu*x, m_parameter));
+	return 0.28;
 }
 
 #if 0

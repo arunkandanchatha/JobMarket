@@ -6,6 +6,7 @@ class ShimerProcess :
 public:
 	ShimerProcess(int states, double sigma, double gamma);
 	~ShimerProcess();
+	void printMatrix();
 
 private:
 	const double m_sigma;

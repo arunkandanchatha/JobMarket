@@ -8,11 +8,13 @@ class deHaanMatching :
 private:
 	deHaanMatching(deHaanMatching &orig);
 	const double m_mu;
-	double calculatedF(double newTheta) final;
+	const double m_alpha;
 
 public:
 	deHaanMatching(double fTarget);
 	~deHaanMatching();
+	double calculatedF(double newTheta) final;
+	double getElasticity(double newTheta) final;
 
 	double f() final;
 	MatchingFunction *dTheta() final;

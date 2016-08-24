@@ -1,6 +1,10 @@
 #pragma once
 #include "stdafx.h"
 
+#define D_MY_MU (2.57)
+#define D_MY_ALPHA (0.54)
+#define D_MY_PARAMETER (1.31)
+
 class MatchingFunction
 {
 	friend class OLGModel;
@@ -13,9 +17,10 @@ public:
 
 	double getTheta();
 	double getParameter();
+	virtual double calculatedF(double newTheta) = 0;
+	virtual double getElasticity(double newTheta) = 0;
 
 protected:
-	virtual double calculatedF(double newTheta) = 0;
 	double m_theta;
 	const double m_parameter;
 };
