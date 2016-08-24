@@ -1,9 +1,9 @@
 #pragma once
 #include "stdafx.h"
 
-#define D_MY_MU (2.57)
-#define D_MY_ALPHA (0.54)
-#define D_MY_PARAMETER (1.31)
+#define D_MY_MU (15.14)
+#define D_MY_ALPHA (1)
+#define D_MY_PARAMETER (0.38)
 
 class MatchingFunction
 {
