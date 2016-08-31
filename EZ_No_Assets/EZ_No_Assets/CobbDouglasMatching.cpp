@@ -3,6 +3,10 @@
 CobbDouglasMatching::CobbDouglasMatching(double fTarget, double parameter) : MatchingFunction(parameter), m_mu(fTarget)
 {
 	m_theta = 1; 
+	if (fTarget > 1) {
+		std::cout << "Error! CobbDouglasMatching.CobbDouglasMatching(): Cannot have a target > 1" << std::endl;
+		exit(-1);
+	}
 }
 
 CobbDouglasMatching::CobbDouglasMatching(CobbDouglasMatching &orig) : MatchingFunction(orig.m_parameter), m_mu(orig.m_mu)

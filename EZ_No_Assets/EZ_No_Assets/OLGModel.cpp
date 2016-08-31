@@ -47,8 +47,8 @@ void OLGModel::solveWages()
 			std::cout << i << ":" << j << std::endl;
 #endif
 			if (i == m_gens - 1) {
-				E_vals(i, j) = (1 - D_BETA)*pow(D_b, D_RHO);
-				U_vals(i, j) = (1 - D_BETA)*pow(D_b, D_RHO);
+				E_vals(i, j) = pow((1 - D_BETA)*pow(D_b, D_RHO),1.0/D_RHO);
+				U_vals(i, j) = pow((1 - D_BETA)*pow(D_b, D_RHO), 1.0 / D_RHO);
 				W_vals(i, j) = 0;
 				wages(i, j) = D_b;
 			}
@@ -304,10 +304,6 @@ std::vector<double> OLGModel::wageElasticityWRTymb() {
 	OLGModel yChange(m_gens, 1.0001*Ey, m_Es, *m_f, *m_sp, bargaining, false);
 
 	yChange.solveWages();
-
-	printWages();
-	yChange.printWages();
-	exit(-1);
 
 	std::vector<double> expectedWage(m_sp->numStates());
 	std::vector<double> newExpectedWage(m_sp->numStates());

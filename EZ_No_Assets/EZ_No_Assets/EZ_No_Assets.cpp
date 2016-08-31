@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 			//model.printWages();
 			//solve for elasticity
 			std::cout << myF.getParameter() << "," << model.elasticityWRTymb() << std::endl;
-#if 0
+#if 1
 			std::vector<double> elast = model.wageElasticityWRTymb();
 			for (int j = 0; j < elast.size(); j++) {
 				std::cout << j << "," << elast[j] << std::endl;
