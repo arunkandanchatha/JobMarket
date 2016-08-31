@@ -11,6 +11,7 @@
 #include <tchar.h>
 #include <cmath>
 
+#include <assert.h> // will use assert to check certain values
 #include <cstdlib>
 #include <cstddef>
 #include <cctype>
@@ -25,3 +26,4 @@
 #include <Eigen/Dense>
 using namespace Eigen;
 #include <omp.h>
+#include "macros.h"

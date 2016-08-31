@@ -1,7 +1,5 @@
 #include "OLGSolveAutoDiff.h"
 
-
-
 OLGSolveAutoDiff::OLGSolveAutoDiff(int gens, std::vector<double> ys, MatrixXd conditionalProbs, double parameter,
 	/*std::vector<double> bargaining,*/ double s, MatrixXd &wages)
 	:m_gens(gens),m_conditionalProbs(conditionalProbs), m_parameter(parameter), /*m_bargaining(bargaining),*/m_s(s),
@@ -11,6 +9,12 @@ OLGSolveAutoDiff::OLGSolveAutoDiff(int gens, std::vector<double> ys, MatrixXd co
 	m_Y = ys;
 }
 
+OLGSolveAutoDiff::OLGSolveAutoDiff(OLGSolveAutoDiff &orig) 
+	: m_gens(orig.m_gens), m_conditionalProbs(orig.m_conditionalProbs), m_parameter(orig.m_parameter), /*m_bargaining(bargaining),*/m_s(orig.m_s),
+m_wgs(orig.m_wgs) {
+	m_Y.resize(orig.m_Y.size());
+	m_Y = orig.m_Y;
+}
 
 OLGSolveAutoDiff::~OLGSolveAutoDiff()
 {
@@ -135,7 +139,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 								VectorXd nextPDF = m_conditionalProbs.row(j);
 								for (int ii = MAX(0, j - MAX_SHOCKS_PER_MONTH); ii < MIN(numStates, j + MAX_SHOCKS_PER_MONTH + 1); ii++) {
 									double nextProb = nextPDF(ii);
-									adouble calcF = D_MY_ALPHA*D_MY_MU*m_thetas[ii] / pow(1 + pow(D_MY_MU*m_thetas[ii], m_parameter), 1.0 / m_parameter);
+									adouble calcF = D_MY_ALPHA*D_MY_MU*m_thetas[j] / pow(1 + pow(D_MY_MU*m_thetas[j], m_parameter), 1.0 / m_parameter);
 									adouble nextVal = pow(latestU[ii] + calcF*(latestE[ii] - latestU[ii]), D_RHO);
 									total += nextProb*nextVal;
 								}
@@ -512,6 +516,12 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 
 		adouble calculatedF = D_MY_ALPHA*D_MY_MU*m_thetas[i] / pow(1 + pow(D_MY_MU*m_thetas[i], m_parameter), 1.0 / m_parameter);
 		retVal += pow(D_C / D_BETA - calculatedF / m_thetas[i] * expectedW, 2);
+		if (value(retVal) != value(retVal)) {
+			std::cout << "OLGSolveAUtoDiff.solveProblem(): retval is NaN" << std::endl;
+			std::cout << "Theta(" << i << ")=" << m_thetas[i] << std::endl;
+			std::cout << "ExpectedW=" << expectedW << std::endl;
+			exit(-1);
+		}
 	}
 	retVal.set_gradient(1.0);
 	stack_.compute_adjoint();
@@ -525,4 +535,8 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 		}
 	}
 	return value(retVal);
+}
+
+void OLGSolveAutoDiff::setBargaining(std::vector<double>& b) {
+	m_bargaining = b;
 }

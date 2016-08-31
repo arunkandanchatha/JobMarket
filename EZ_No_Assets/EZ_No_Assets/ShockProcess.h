@@ -1,7 +1,6 @@
 #pragma once
 
 #include "stdafx.h"
-#define MAX_SHOCKS_PER_MONTH (10)
 
 typedef Matrix<double, Dynamic, 2> pdfMatrix;
 

@@ -1,16 +1,27 @@
 // EZ_No_Assets.cpp : Defines the entry point for the console application.
 //
-
 #include "stdafx.h"
-#include "OLGModel.h"
+#include "adept_source.h"
 #include "CobbDouglasMatching.h"
 #include "deHaanMatching.h"
 #include "NoShocksProcess.h"
 #include "ShimerProcess.h"
 #include "nlopt.hpp"
 #include "SimAnnealForOLGModel.h"
-#include "adept_source.h"
+#include "OLGModel.h"
+
+/*
+#include "ceres/ceres.h"
+#include "glog/logging.h"
+
 //#include "vld.h"
+
+using ceres::DynamicAutoDiffCostFunction;
+using ceres::CostFunction;
+using ceres::Problem;
+using ceres::Solver;
+using ceres::Solve;
+*/
 
 double myConstraint(const std::vector<double> &x, std::vector<double> &grad, void*data);
 void initialize(std::vector<double> &x, char *filename);
@@ -37,11 +48,13 @@ int main(int argc, char *argv[])
 		break;
 	default:
 		std::cout << "invoke as follows:" << std::endl
-			<< "./executable <s|c|e|a|x> gens states fTarget [thetaGuess.file]" << std::endl
+			<< "./executable <s|c|e|a|g|x> gens states fTarget [thetaGuess.file]" << std::endl
 			<< "where " << std::endl
 			<< "    s-solve (simulated annealing)" << std::endl
 			<< "    c-solve (COBYLA)" << std::endl
 			<< "    e-elasticity" << std::endl
+			<< "    a-autodiff (adept)" << std::endl
+			<< "    g-google ceres" << std::endl
 			<< "    x-simulate only" << std::endl;
 		return 1;
 	}
@@ -53,7 +66,7 @@ int main(int argc, char *argv[])
 
 	if (which == 'e')
 	{
-		for (int i = 1; i < 81; i++) {
+		for (int i = 28; i < 29; i++) {
 			//solve for all wages
 			//create matching function targetting f=X and eta=Y
 			CobbDouglasMatching myF(fTarget, 0.01*i/*D_ETA*/);
@@ -62,12 +75,18 @@ int main(int argc, char *argv[])
 			NoShocksProcess p;
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, 1.0, D_S, myF, p, 1 - D_ETA, false);
+			OLGModel model(numGens, D_y, D_S, myF, p, 1 - D_ETA, false);
 			model.solveWages();
 			//model.printWages();
 			//solve for elasticity
 			std::cout << myF.getParameter() << "," << model.elasticityWRTymb() << std::endl;
+#if 0
+			std::vector<double> elast = model.wageElasticityWRTymb();
+			for (int j = 0; j < elast.size(); j++) {
+				std::cout << j << "," << elast[j] << std::endl;
+			}
 			//std::cout << myF.getParameter() << "," << model.elasticityWRTs() << std::endl;
+#endif
 		}
 		return 1;
 	}
@@ -94,7 +113,7 @@ int main(int argc, char *argv[])
 			ShimerProcess p((solveIndex - 1) / 2, 0.0165, 4.0 / ((solveIndex - 1) / 2));
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, 1.0, D_S, myF, p, 1 - D_ETA, autoDiff);
+			OLGModel model(numGens, D_y, D_S, myF, p, 1 - D_ETA, autoDiff);
 
 			if (which == 's') {
 				const double targ = 0;
@@ -105,8 +124,32 @@ int main(int argc, char *argv[])
 				for (int i = 0; i < solveIndex; i++) {
 					std::cout << "theta(" << i << ")=" << (*soln)[i] << std::endl;
 				}
+				x = *soln;
 				delete soln;
 			}
+#if 0
+			else if (which == 'g') {
+				google::InitGoogleLogging(argv[0]);
+				Problem problem;
+				OLGSolveAutoDiff *myTemp = new OLGSolveAutoDiff(model.getSolver());
+				DynamicAutoDiffCostFunction<OLGSolveAutoDiff, 4>* cost_function = new DynamicAutoDiffCostFunction<OLGSolveAutoDiff,4>(myTemp);
+				cost_function->AddParameterBlock(solveIndex);
+				cost_function->SetNumResiduals(solveIndex);
+				std::vector<double *> parameter_block(1);
+				parameter_block[0] = &x[0];
+				problem.AddResidualBlock(cost_function, NULL, parameter_block[0]);
+
+				// Run the solver!
+				Solver::Options options;
+				options.linear_solver_type = ceres::DENSE_QR;
+				options.minimizer_progress_to_stdout = true;
+				Solver::Summary summary;
+				Solve(options, &problem, &summary);
+				std::cout << summary.BriefReport() << "\n";
+
+				delete myTemp;
+			}
+#endif
 			else {
 				nlopt::algorithm algoChoice;
 				switch (which) {
@@ -126,8 +169,8 @@ int main(int argc, char *argv[])
 
 				nlopt::opt opt(algoChoice, solveIndex);
 				opt.set_maxeval(solveIndex * 250);
-				opt.set_lower_bounds(readFile ? (x[0] / 2.0) : 0.00001);
-				opt.set_upper_bounds(readFile ? (2 * x[solveIndex - 1]) : 5);
+				opt.set_lower_bounds(MIN(x[0] / 2.0,0.00001));
+				opt.set_upper_bounds(MAX(2 * x[solveIndex - 1],5));
 				opt.set_min_objective(OLGModel::wrap, &model);
 				opt.set_population(5 * solveIndex);
 
@@ -138,7 +181,7 @@ int main(int argc, char *argv[])
 						opt.add_inequality_constraint(myConstraint, &data[i], 0);
 					}
 				}
-				opt.set_stopval(1e-4);
+				opt.set_stopval((solveIndex==numStates)?1e-4:1e-3);
 
 				double minf = 200;
 				nlopt::result result;
@@ -168,7 +211,7 @@ int main(int argc, char *argv[])
 				OLGModel::printStatus(x, -1, minf);
 			}
 			std::vector<double> newX(solveIndex + 2);
-			newX[0] = MAX(x[0] - 0.01, 0);
+			newX[0] = MAX(x[0] - 0.01, x[0]/2);
 			for (int myIndex = 0; myIndex < solveIndex; myIndex++) {
 				newX[myIndex + 1] = x[myIndex];
 			}
@@ -187,15 +230,15 @@ int main(int argc, char *argv[])
 
 	//create shock process
 	ShimerProcess p((x.size() - 1) / 2, 0.0165, 4.0 / ((x.size() - 1) / 2));
-	p.printMatrix();
-	exit(-1);
+	//p.printMatrix();
+	//exit(-1);
 
 	//create matching
 	deHaanMatching myF(fTarget);
 
 	//simulate 100 times
-	std::cout << "simulation      u     theta (state)" << std::endl;
-	for (int i = 0; i < 10000; i++) {
+	std::cout << "simulation,period,u,v,theta,f,y,state" << std::endl;
+	for (int i = 0; i < 100; i++) {
 		//choose random starting unemployment between 0 and 1
 		double u = rand() / double(RAND_MAX);
 		//choose random starting "shock" state
@@ -207,15 +250,33 @@ int main(int argc, char *argv[])
 		//std::cout << i << "    " << u << "     " << currTheta << " " << currState << std::endl;
 		pdfMatrix nextPDF = p.nextPeriodPDF(currState);
 		//each time, simulate 5000 periods
+		int quarterCounter = 0;
+		double uAvg = 0;
+		double vAvg = 0;
+		double fAvg = 0;
 		for (int j = 0; j < 5000; j++) {
 			//update unemployment rate
 			double loseJobs = D_S*(1 - u);
-			double gainJobs = myF.calculatedF(currTheta)*u;
-			double changeU = loseJobs - gainJobs;
-			u += changeU;
-			if (j > 4400) {
-				std::cout << i << "    " << u << "     " << currTheta << "  " << currState << "    " << std::endl;
+			double newU = u + loseJobs;
+
+			if (j > 4398) {
+				uAvg += newU;
+				vAvg += newU*currTheta;
+				fAvg += myF.calculatedF(currTheta);
+				if (j % 3 == 0) {
+					uAvg /= 3;
+					vAvg /= 3;
+					fAvg /= 3;
+//					std::cout << i << "," << quarterCounter++ << "," << uAvg << "," << vAvg << "," << vAvg/uAvg << "," << fAvg << "," << D_b + exp(nextPDF(currState, 1))*(D_y - D_b) << "," << currState << std::endl;
+					std::cout << i << "," << quarterCounter++ << "," << u << "," << (newU*currTheta) << "," << currTheta << "," << myF.calculatedF(currTheta) << "," << D_b + exp(nextPDF(currState, 1))*(D_y - D_b) << "," << currState << std::endl;
+					uAvg = 0;
+					vAvg = 0;
+					fAvg = 0;
+				}
 			}
+
+			double gainJobs = myF.calculatedF(currTheta)*newU;
+			u = newU-gainJobs;
 
 			double randNumForShocks = rand() / double(RAND_MAX+1);
 			double cumeTotal = 0;

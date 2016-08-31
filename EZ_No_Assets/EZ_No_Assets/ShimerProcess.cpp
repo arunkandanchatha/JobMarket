@@ -52,8 +52,11 @@ void ShimerProcess::calculateConditionalProbabilities()
 	//transitioning to i-1 is 1-p(i+1)
 	VectorXd posProb(numStates());
 	for (unsigned int i = 0; i < numStates(); i++) {
-		posProb(i) = 0.5*(1 - m_values(i) / (states*delta));
+//		posProb(i) = 0.5*(1 - m_values(i) / (states*delta));
+		posProb(i) = 0.5*(1 - m_values(i) / (1000*delta));
 	}
+	posProb(0) = 1;
+	posProb(numStates() - 1) = 0;
 	//we have a poisson process with (on average) one shock per quarter, or
 	//alternatively, 1/3 of a shock per month. We can find the probability
 	//of having x shocks using the formula:
@@ -120,6 +123,7 @@ void ShimerProcess::setProbMatrix(int currentState, int remainingShocks, double 
 }
 
 void ShimerProcess::printMatrix() {
+	using namespace std;
 
 	std::cout << "state,";
 	int maxVal = m_conditionalProbs.rows();
@@ -138,4 +142,30 @@ void ShimerProcess::printMatrix() {
 		}
 		std::cout << m_conditionalProbs(i, maxVal-1) << std::endl;
 	}
+
+	ostringstream os;
+	ofstream out_stream;
+	os << "transition.csv";
+	//out_stream.precision(15);
+	out_stream << std::scientific;
+	out_stream.open(os.str(), std::ofstream::out/* | std::ofstream::app*/);
+
+	for (int i = 0; i < maxVal; i++) {
+		out_stream << i;
+		if (i != m_conditionalProbs.size() - 1) {
+			out_stream << ",";
+		}
+	}
+	out_stream << std::endl;
+
+	for (int i = 0; i < maxVal; i++) {
+		out_stream << i << ",";
+		for (int j = 0; j < maxVal - 1; j++) {
+			out_stream << m_conditionalProbs(i, j) << ",";
+		}
+		out_stream << m_conditionalProbs(i, maxVal - 1) << std::endl;
+	}
+
+	out_stream.close();
+
 }

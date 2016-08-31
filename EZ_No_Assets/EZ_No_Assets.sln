@@ -5,6 +5,11 @@ VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EZ_No_Assets", "EZ_No_Assets\EZ_No_Assets.vcxproj", "{BC8A75B3-7E9C-4FC1-8CA7-6C291828774B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4A2BDDFE-2CB6-402F-B77B-5AA0280A6127}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\..\JMP Libraries\eigen\debug\msvc\eigen.natvis = ..\..\..\JMP Libraries\eigen\debug\msvc\eigen.natvis
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

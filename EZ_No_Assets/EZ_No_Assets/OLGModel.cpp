@@ -1,4 +1,5 @@
 #include "OLGModel.h"
+#include "MySolver.h"
 #include "nlopt.hpp"
 #include <exception>
 
@@ -40,7 +41,7 @@ void OLGModel::solveWages()
 	for (unsigned int i = m_gens - 1; i < m_gens; i--) {
 		lastSolveGen = i + 1;
 
-		#pragma omp parallel for num_threads(3)
+		//#pragma omp parallel for num_threads(3)
 		for (int j = 0; j < m_sp->numStates(); j++) {
 #if 0
 			std::cout << i << ":" << j << std::endl;
@@ -84,6 +85,7 @@ void OLGModel::solveWages()
 		
 #endif
 #if 0
+				{
 				MySolver solver(toSolve, pow(10,-30));
 
 				double del = solver.solve(latestWages, prodInState);
@@ -180,7 +182,7 @@ double OLGModel::calcU(int state, VectorXd &Up1, VectorXd &Ep1) {
 	for (int i = MAX(0,state-MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(),state+MAX_SHOCKS_PER_MONTH+1); i++) {
 //	for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
 		double nextProb = nextPDF(i, 0);
-		double calcF = m_f->calculatedF(m_thetas[i]);
+		double calcF = m_f->calculatedF(m_thetas[state]);
 		double nextVal = pow(Up1(i) + calcF*(Ep1(i) - Up1(i)), D_RHO);
 		total += nextProb*nextVal;
 	}
@@ -295,6 +297,37 @@ double OLGModel::elasticityWRTymb() {
 	return num/denom;
 }
 
+std::vector<double> OLGModel::wageElasticityWRTymb() {
+	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
+	double Ey = m_Y(expectedState);
+	double bargaining = 1 - m_f->getElasticity(m_thetas(expectedState));
+	OLGModel yChange(m_gens, 1.0001*Ey, m_Es, *m_f, *m_sp, bargaining, false);
+
+	yChange.solveWages();
+
+	printWages();
+	yChange.printWages();
+	exit(-1);
+
+	std::vector<double> expectedWage(m_sp->numStates());
+	std::vector<double> newExpectedWage(m_sp->numStates());
+	for (int j = 0; j < m_sp->numStates(); j++) {
+		for (int i = 0; i < m_gens; i++) {
+			if (i == 0) {
+				expectedWage[j] = 0;
+				newExpectedWage[j] = 0;
+			}
+			expectedWage[j] += (wages(i, j) / m_gens);
+			newExpectedWage[j] += (yChange.wages(i, j) / m_gens);
+		}
+	}
+	std::vector<double> retVal(m_sp->numStates());
+	for (int i = 0; i < m_sp->numStates(); i++) {
+		retVal[i] = (Ey - D_b)*(newExpectedWage[i] - expectedWage[i]) / (1.0001*Ey - Ey);
+	}
+	return retVal;
+}
+
 double OLGModel::elasticityWRTs() {
 	OLGModel thetaChange(*this);
 	thetaChange.m_f = m_f->dTheta();
@@ -363,6 +396,20 @@ double OLGModel::operator()(const std::vector<double> &x, std::vector<double> &g
 
 }
 
+OLGSolveAutoDiff OLGModel::getSolver() {
+	std::vector<double> myYs(m_Y.size());
+	VectorXd::Map(&myYs[0], m_Y.size()) = m_Y;
+	std::vector<double> bargaining(m_Y.size());
+	OLGSolveAutoDiff soln(m_gens, myYs, m_sp->getProbMatrix(), m_f->getParameter(), m_Es, wages);
+
+	for (int i = 0; i < myYs.size(); i++) {
+		bargaining[i] = 1 - m_f->getElasticity(1);
+	}
+
+	soln.setBargaining(bargaining);
+	return soln;
+}
+
 double OLGModel::wrap(const std::vector<double> &x, std::vector<double> &grad, void *data) {
 
 	static double bestSoFar = 10000;
@@ -379,6 +426,10 @@ double OLGModel::wrap(const std::vector<double> &x, std::vector<double> &grad, v
 	std::cout << "OLGModel.cpp-wrap(): Starting evaluation " << ++m_counter << std::endl << std::flush;
 	double value = (*reinterpret_cast<OLGModel*>(data))(x, grad);
 
+	if (value != value) {
+		std::cout << "OLGModel.wrap() - solution is NaN" << std::endl;
+		exit(-1);
+	}
 	std::cout << "OLGModel.cpp-wrap(): Evaluation " << m_counter << ": " << value << std::endl << std::flush;
 
 	if (value < bestSoFar) {

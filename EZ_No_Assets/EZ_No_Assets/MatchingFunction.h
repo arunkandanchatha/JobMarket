@@ -1,10 +1,6 @@
 #pragma once
 #include "stdafx.h"
 
-#define D_MY_MU (15.14)
-#define D_MY_ALPHA (1)
-#define D_MY_PARAMETER (0.38)
-
 class MatchingFunction
 {
 	friend class OLGModel;

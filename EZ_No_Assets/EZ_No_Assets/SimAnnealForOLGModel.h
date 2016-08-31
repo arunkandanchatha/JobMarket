@@ -1,8 +1,7 @@
 #pragma once
 #include "SimulatedAnnealingInterface.h"
-#include <vector>
 #include "OLGModel.h"
-#include "macros.h"
+#include <vector>
 
 class SimAnnealForOLGModel :
 	public SimulatedAnnealingInterface<std::vector<double>,double>
@@ -45,4 +44,3 @@ private:
 	int maxMult;
 
 };
-

@@ -88,13 +88,15 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\arunk\OneDrive\JMP Libraries\adept-1.1\include;C:\Users\arunk\OneDrive\JMP Libraries\nlopt;C:\Users\arunk\OneDrive\JMP Libraries\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\arunk\Source\JMP Libraries\ceres\cxsparse\Include;C:\Users\arunk\Source\JMP Libraries\ceres\glog\src\windows;C:\Users\arunk\Source\JMP Libraries\ceres\gflags-build\include;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-solver-1.11.0\include;C:\Users\arunk\Source\JMP Libraries\adept-1.1\include;C:\Users\arunk\Source\JMP Libraries\nlopt;C:\Users\arunk\Source\JMP Libraries\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FloatingPointModel>Strict</FloatingPointModel>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4018;4099;4996;4800;4996;4224;4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\arunk\OneDrive\JMP Libraries\nlopt;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\arunk\Source\JMP Libraries\ceres\ceres-build\lib\Debug;C:\Users\arunk\Source\JMP Libraries\nlopt;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libnlopt-0.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -105,36 +107,40 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\arunk\OneDrive\JMP Libraries\adept-1.1\include;C:\Users\arunk\OneDrive\JMP Libraries\nlopt;C:\Users\arunk\OneDrive\JMP Libraries\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\arunk\Source\JMP Libraries\ceres\cxsparse\Include;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-solver-1.11.0\internal\ceres;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-solver-1.11.0\internal;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-bin\config;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-solver-1.11.0\include;C:\Users\arunk\Source\JMP Libraries\ceres\gflags\build2\include;C:\Users\arunk\Source\JMP Libraries\ceres\glog\build;C:\Users\arunk\Source\JMP Libraries\adept-1.1\include;C:\Users\arunk\Source\JMP Libraries\nlopt;C:\Users\arunk\Source\JMP Libraries\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <FloatingPointModel>Strict</FloatingPointModel>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4018;4099;4996;4800;4996;4224;4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\arunk\OneDrive\JMP Libraries\nlopt;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\arunk\Source\JMP Libraries\ceres\ceres-bin\lib\Release;C:\Users\arunk\Source\JMP Libraries\nlopt;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>libnlopt-0.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <FloatingPointModel>Strict</FloatingPointModel>
-      <AdditionalIncludeDirectories>C:\Users\arunk\OneDrive\JMP Libraries\adept-1.1\include;C:\Users\arunk\OneDrive\JMP Libraries\nlopt;C:\Users\arunk\OneDrive\JMP Libraries\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\arunk\Source\JMP Libraries\ceres\glog\src\windows;C:\Users\arunk\Source\JMP Libraries\ceres\glog\src\windows;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-build\config;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-solver-1.11.0\include;C:\Users\arunk\Source\JMP Libraries\ceres\cxsparse\Include;C:\Users\arunk\Source\JMP Libraries\ceres\gflags-build\include;C:\Users\arunk\Source\JMP Libraries\eigen;C:\Users\arunk\Source\JMP Libraries\adept-1.1\include;C:\Users\arunk\Source\JMP Libraries\nlopt;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4018;4099;4996;4800;4996;4224;4251</DisableSpecificWarnings>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Users\arunk\OneDrive\JMP Libraries\nlopt;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libnlopt-0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\arunk\Source\JMP Libraries\ceres\cxsparse\Lib;C:\Users\arunk\Source\JMP Libraries\ceres\glog-build\Release;C:\Users\arunk\Source\JMP Libraries\nlopt;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-AltTry\lib\Release</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libnlopt-0.lib;ceres.lib;glog.lib;cxsparse.lib;glog.lib;gflags.lib;CXSparse.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -146,16 +152,18 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\arunk\OneDrive\JMP Libraries\adept-1.1\include;C:\Users\arunk\OneDrive\JMP Libraries\nlopt;C:\Users\arunk\OneDrive\JMP Libraries\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\arunk\Source\JMP Libraries\ceres\glog\src\windows;C:\Users\arunk\Source\JMP Libraries\ceres\cxsparse\Include;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-solver-1.11.0\internal\ceres;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-solver-1.11.0\internal;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-bin\config;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-solver-1.11.0\include;C:\Users\arunk\Source\JMP Libraries\ceres\gflags\build2\include;C:\Users\arunk\Source\JMP Libraries\ceres\glog\build;C:\Users\arunk\Source\JMP Libraries\adept-1.1\include;C:\Users\arunk\Source\JMP Libraries\nlopt;C:\Users\arunk\Source\JMP Libraries\eigen;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>true</OpenMPSupport>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4018;4099;4996;4800;4996;4224;4251</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>C:\Users\arunk\OneDrive\JMP Libraries\nlopt;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libnlopt-0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\arunk\Source\JMP Libraries\ceres\cxsparse\Lib;C:\Users\arunk\Source\JMP Libraries\ceres\glog-build\Release;C:\Users\arunk\Source\JMP Libraries\nlopt;C:\Users\arunk\Source\JMP Libraries\ceres\ceres-AltTry\lib\Release</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libnlopt-0.lib;ceres.lib;glog.lib;cxsparse.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -195,9 +203,6 @@
     <ClCompile Include="SimAnnealForOLGModel.cpp" />
     <ClCompile Include="SimulatedAnnealingInterface.cpp" />
     <ClCompile Include="stdafx.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <Natvis Include="..\..\..\..\..\OneDrive\JMP Libraries\eigen\debug\msvc\eigen.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

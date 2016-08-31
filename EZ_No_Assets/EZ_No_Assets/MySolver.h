@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cmath>
 #include "stdafx.h"
 #include "FunctorBase.h"
+#include <cmath>
 
 #define TINY 1.0e-20
 #define GLIMIT 100.0
@@ -31,4 +31,3 @@ private:
 	/* From Numerical Recipes*/
 	void mnbrak(double *ax, double *bx, double *cx, double *fa, double *fb, double *fc);
 };
-

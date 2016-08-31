@@ -1,4 +1,5 @@
 #pragma once
+#include "stdafx.h"
 #include "ShockProcess.h"
 class ShimerProcess :
 	public ShockProcess
