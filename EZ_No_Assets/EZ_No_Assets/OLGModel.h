@@ -35,8 +35,6 @@ private:
 	double partialE_partialDel(int state, double x, VectorXd &Up1, VectorXd &Ep1);
 	double expectedW(int state, bool forceNoShocks=false);
 
-	int lastSolveGen;
-
 	MatrixXd E_vals;
 	MatrixXd U_vals;
 	MatrixXd W_vals;
@@ -48,6 +46,6 @@ private:
 	const unsigned int m_gens;
 	MatchingFunction *m_f;
 	ShockProcess *m_sp;
-	//const double m_bargaining;
+	const double m_bargaining;
 	const bool m_autodiff;
 };

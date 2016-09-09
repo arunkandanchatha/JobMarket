@@ -17,12 +17,12 @@ public:
 	double solveProblem(std::vector<double>& input, std::vector<double>&grad, std::vector<double>& bargaining);
 
 	void setBargaining(std::vector<double>& b);
+	MatrixXd* m_wgs;
 
 private:
 	const int m_gens;
 	std::vector<double> m_Y;
 	std::vector<double> m_bargaining;
-	MatrixXd* m_wgs;
 	MatrixXd m_conditionalProbs;
 
 	adept::Stack stack_;

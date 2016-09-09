@@ -30,10 +30,12 @@ double CobbDouglasMatching::calculatedF(double x)
 	return m_mu*pow(x, m_parameter);
 }
 
+#if 0
 double CobbDouglasMatching::f()
 {
 	return calculatedF(m_theta);
 }
+#endif
 
 MatchingFunction *CobbDouglasMatching::dTheta()
 {

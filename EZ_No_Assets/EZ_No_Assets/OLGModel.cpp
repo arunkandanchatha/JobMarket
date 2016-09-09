@@ -4,7 +4,7 @@
 #include <exception>
 
 OLGModel::OLGModel(unsigned int generations, double y, double s, MatchingFunction &f, ShockProcess &sp, double bargaining, bool autoDiff)
-	: m_gens(generations), m_f(&f), /*m_bargaining(bargaining),*/ m_Es(s), m_sp(&sp), m_Y(sp.numStates()),
+	: m_gens(generations), m_f(&f), m_bargaining(bargaining), m_Es(s), m_sp(&sp), m_Y(sp.numStates()),
 	E_vals(generations, sp.numStates()), U_vals(generations, sp.numStates()),
 	W_vals(generations, sp.numStates()), wages(generations, sp.numStates()),
 	m_thetas(sp.numStates()), m_autodiff(autoDiff)
@@ -39,16 +39,15 @@ OLGModel::~OLGModel()
 void OLGModel::solveWages()
 {
 	for (unsigned int i = m_gens - 1; i < m_gens; i--) {
-		lastSolveGen = i + 1;
 
-		//#pragma omp parallel for num_threads(3)
+		#pragma omp parallel for num_threads(3)
 		for (int j = 0; j < m_sp->numStates(); j++) {
 #if 0
 			std::cout << i << ":" << j << std::endl;
 #endif
 			if (i == m_gens - 1) {
-				E_vals(i, j) = pow((1 - D_BETA)*pow(D_b, D_RHO),1.0/D_RHO);
-				U_vals(i, j) = pow((1 - D_BETA)*pow(D_b, D_RHO), 1.0 / D_RHO);
+				E_vals(i, j) = pow(1 - D_BETA, 1.0 / D_RHO)*D_b;
+				U_vals(i, j) = pow(1 - D_BETA, 1.0 / D_RHO)*D_b;
 				W_vals(i, j) = 0;
 				wages(i, j) = D_b;
 			}
@@ -60,51 +59,15 @@ void OLGModel::solveWages()
 				double prodInState = m_Y(j);
 
 				Generation toSolve(*this, &OLGModel::nonLinearWageEquation, j, latestU, latestE, latestW);
-
-#if 0
-				if (i == 0 && j == 0) {
-					std::cout << "f value = " << toSolve(0.440577330755482) << std::endl;
-					int numStates = m_sp->numStates();
-					std::cout << "E: ";
-					for (int ii = 0; ii < numStates; ii++) {
-						std::cout << latestE[ii] << ",";
-					}
-					std::cout << std::endl;
-					std::cout << "U: ";
-					for (int ii = 0; ii < numStates; ii++) {
-						std::cout << latestU[ii] << ",";
-					}
-					std::cout << std::endl;
-					std::cout << "W: ";
-					for (int ii = 0; ii < numStates; ii++) {
-						std::cout << latestW[ii] << ",";
-					}
-					std::cout << std::endl;
-					exit(-1);
-				}
-		
-#endif
-#if 0
-				{
-				MySolver solver(toSolve, pow(10,-30));
-
-				double del = solver.solve(latestWages, prodInState);
-#else
 				nlopt::opt opt(nlopt::LN_BOBYQA, 1);
 				double lwbnd = latestWages - D_b;
 				double upbnd = prodInState - D_b;
 
 				if (lwbnd == upbnd) {
-#if 0
-					std::cout << "Error! OLGModel.cpp-solveWages() : can only set wage equal to previous one. Really don't want this as it is wrong." << std::endl;
-					std::cout << "w=" << lwbnd + D_b << std::endl;
-					exit(-1);
-#endif
 					wages(i, j) = latestWages;
 					U_vals(i, j) = U_vals(i + 1, j);
 					E_vals(i, j) = E_vals(i + 1, j);
 					W_vals(i, j) = W_vals(i + 1, j);
-
 				}
 				else {
 
@@ -138,7 +101,6 @@ void OLGModel::solveWages()
 						exit(-1);
 					}
 					double del = x[0];
-#endif
 					double newWages = D_b + del;
 
 					if (newWages < latestWages) {
@@ -180,10 +142,9 @@ double OLGModel::calcU(int state, VectorXd &Up1, VectorXd &Ep1) {
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
 	for (int i = MAX(0,state-MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(),state+MAX_SHOCKS_PER_MONTH+1); i++) {
-//	for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
 		double nextProb = nextPDF(i, 0);
 		double calcF = m_f->calculatedF(m_thetas[state]);
-		double nextVal = pow(Up1(i) + calcF*(Ep1(i) - Up1(i)), D_RHO);
+		double nextVal = D_DEATH*pow(1 - D_BETA, 1.0 / D_RHO)*D_b+(1-D_DEATH)*pow(Up1(i) + calcF*(Ep1(i) - Up1(i)), D_RHO);
 		total += nextProb*nextVal;
 	}
 	total *= D_BETA;
@@ -196,8 +157,8 @@ double OLGModel::calcE(int state, double delta, VectorXd &Up1, VectorXd &Ep1) {
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
 	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
-//		for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
-		total += nextPDF(i, 0)*pow(Ep1(i) - m_Es*(Ep1(i) - Up1(i)), D_RHO);
+		double nextVal = D_DEATH*pow(1 - D_BETA, 1.0 / D_RHO)*D_b + (1 - D_DEATH)*(pow(Ep1(i) - m_Es*(Ep1(i) - Up1(i)), D_RHO));
+		total += nextPDF(i, 0)*nextVal;
 	}
 	total *= D_BETA;
 	double retVal = pow((1 - D_BETA)*pow(D_b + delta, D_RHO) + total, 1.0 / D_RHO);
@@ -209,8 +170,7 @@ double OLGModel::calcW(int state, double delta, VectorXd &Wp1) {
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
 	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
-		//for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
-		total += nextPDF(i, 0)*(1 - m_Es)*Wp1(i);
+		total += nextPDF(i, 0)*(1 - m_Es-D_DEATH)*Wp1(i);
 	}
 	double retVal = m_Y(state) - D_b - delta + D_BETA*total;
 	return retVal;
@@ -222,15 +182,13 @@ double OLGModel::nonLinearWageEquation(int state, double x, VectorXd& Up1, Vecto
 	double t_calcW = calcW(state, x, Wp1);
 	double t_partialE_partialDel = partialE_partialDel(state, x, Up1, Ep1);
 
-
-#if 0
-	std::cout.precision(15);
-	std::cout << t_calcE << ":" << t_calcU << ":" << t_calcW << ":" << t_partialE_partialDel << ":" << m_bargaining << std::endl;
-#endif
-	double bargaining = 1 - m_f->getElasticity(m_thetas(state));
+	if (m_bargaining == 1) {
+		return -(t_calcE - t_calcU);
+	}
+	//double bargaining = 1 - m_f->getElasticity(m_thetas(state));
 	double retVal = ABS(
-//			t_calcE - t_calcU - m_bargaining / (1 - m_bargaining)*t_calcW*t_partialE_partialDel
-			t_calcE - t_calcU - bargaining / (1 - bargaining)*t_calcW*t_partialE_partialDel
+			t_calcE - t_calcU - m_bargaining / (1 - m_bargaining)*t_calcW*t_partialE_partialDel
+//			t_calcE - t_calcU - bargaining / (1 - bargaining)*t_calcW*t_partialE_partialDel
 		);
 
 	if (retVal < 0) {
@@ -245,8 +203,8 @@ double OLGModel::partialE_partialDel(int state, double x, VectorXd& Up1, VectorX
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
 	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
-		//for (unsigned int i = ((state==0)?0:(state-1)); i < ((state == (m_sp->numStates()-1)) ? m_sp->numStates() : (state + 2)); i++) {
-		total += nextPDF(i, 0)*pow(Ep1(i) - m_Es*(Ep1(i) - Up1(i)), D_RHO);
+		double nextVal = D_DEATH*pow(1 - D_BETA, 1.0 / D_RHO)*D_b + (1 - D_DEATH)*(pow(Ep1(i) - m_Es*(Ep1(i) - Up1(i)), D_RHO));
+		total += nextPDF(i, 0)*nextVal;
 	}
 	total *= D_BETA;
 
@@ -281,29 +239,40 @@ double OLGModel::expectedW(int state, bool forceNoShocks) {
 double OLGModel::elasticityWRTymb() {
 	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
 	double Ey = m_Y(expectedState);
-	double bargaining = 1 - m_f->getElasticity(m_thetas(expectedState));
-	OLGModel thetaChange(m_gens, Ey, m_Es, *(m_f->dTheta()), *m_sp, bargaining, false);
-	OLGModel yChange(m_gens, 1.0001*Ey, m_Es, *m_f, *m_sp, bargaining, false);
+	OLGModel thetaChange(m_gens, Ey, m_Es, *(m_f->dTheta()), *m_sp, m_bargaining, false);
+	OLGModel yChange(m_gens, 1.0001*Ey, m_Es, *m_f, *m_sp, m_bargaining, false);
 
 	thetaChange.solveWages();
 	yChange.solveWages();
 
 	double EW = expectedW(expectedState, true);
-	double num = (Ey - D_b)*(yChange.expectedW(expectedState, true) - EW) / (1.0001*Ey - Ey);
-	double denom = bargaining*EW - m_f->getTheta()*
-		(thetaChange.expectedW(expectedState, true) - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
+	double tEW = thetaChange.expectedW(expectedState, true);
+	double yEW = yChange.expectedW(expectedState, true);
+	double num = (Ey - D_b)*(yEW - EW) / (1.0001*Ey - Ey);
+	double denom = (1-m_f->getElasticity(m_thetas(expectedState)))*EW - m_f->getTheta()*
+		(tEW - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
 
 	delete thetaChange.m_f;
 	return num/denom;
 }
 
 std::vector<double> OLGModel::wageElasticityWRTymb() {
+
+	std::cout << "ERROR! OLGModel.wageElasticityWRTymb() is not working!" << std::endl;
+	exit(-1);
+
 	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
 	double Ey = m_Y(expectedState);
 	double bargaining = 1 - m_f->getElasticity(m_thetas(expectedState));
+
+	//FIX THIS. AUTODIFF IF WE HAVE TO?
 	OLGModel yChange(m_gens, 1.0001*Ey, m_Es, *m_f, *m_sp, bargaining, false);
 
+	solveWages();
 	yChange.solveWages();
+
+	printWages();
+	yChange.printWages();
 
 	std::vector<double> expectedWage(m_sp->numStates());
 	std::vector<double> newExpectedWage(m_sp->numStates());
@@ -319,7 +288,15 @@ std::vector<double> OLGModel::wageElasticityWRTymb() {
 	}
 	std::vector<double> retVal(m_sp->numStates());
 	for (int i = 0; i < m_sp->numStates(); i++) {
-		retVal[i] = (Ey - D_b)*(newExpectedWage[i] - expectedWage[i]) / (1.0001*Ey - Ey);
+		if (newExpectedWage[i] < expectedWage[i]) {
+			std::cout << "ERROR! New wage should always be higher than old wage. wage "<< i << std::endl;
+			std::cout << "Average New: " << newExpectedWage[i] << ", Old: " << expectedWage[i] << std::endl;
+			for (int j = 0; j < m_gens; j++) {
+				std::cout << "New: " << yChange.wages(j, i) << ", Old: " << wages(j, i) << std::endl;
+			}
+			exit(-1);
+		}
+		retVal[i] = (Ey - D_b)/(expectedWage[i]-D_b)*(newExpectedWage[i] - expectedWage[i]) / (1.0001*Ey - Ey);
 	}
 	return retVal;
 }
@@ -329,16 +306,16 @@ double OLGModel::elasticityWRTs() {
 	thetaChange.m_f = m_f->dTheta();
 
 	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
-	double bargaining = 1 - m_f->getElasticity(m_thetas(expectedState));
+	//double bargaining = 1 - m_f->getElasticity(m_thetas(expectedState));
 
-	OLGModel sChange(m_gens, m_Y(expectedState), 1.0001*m_Es, *m_f, *m_sp, bargaining, false);
+	OLGModel sChange(m_gens, m_Y(expectedState), 1.0001*m_Es, *m_f, *m_sp, m_bargaining, false);
 
 	thetaChange.solveWages();
 	sChange.solveWages();
 
 	double EW = expectedW(expectedState, true);
 	double num = (m_Es)*(sChange.expectedW(expectedState, true) - EW) / (sChange.m_Es - m_Es);
-	double denom = bargaining*EW - m_f->getTheta()*
+	double denom = (1-m_f->getElasticity(m_thetas(expectedState)))*EW - m_f->getTheta()*
 		(thetaChange.expectedW(expectedState, true) - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
 
 	delete thetaChange.m_f;
@@ -380,7 +357,7 @@ double OLGModel::operator()(const std::vector<double> &x, std::vector<double> &g
 		VectorXd::Map(&myYs[0], m_Y.size()) = m_Y;
 		std::vector<double> bargaining(m_Y.size());
 		for (int i = 0; i < x.size(); i++) {
-			bargaining[i] = 1 - m_f->getElasticity(m_thetas[i]);
+			bargaining[i] = m_bargaining;// 1 - m_f->getElasticity(m_thetas[i]);
 		}
 		OLGSolveAutoDiff soln(m_gens, myYs, m_sp->getProbMatrix(), m_f->getParameter()/*, bargaining*/, m_Es, wages);
 
@@ -399,7 +376,7 @@ OLGSolveAutoDiff OLGModel::getSolver() {
 	OLGSolveAutoDiff soln(m_gens, myYs, m_sp->getProbMatrix(), m_f->getParameter(), m_Es, wages);
 
 	for (int i = 0; i < myYs.size(); i++) {
-		bargaining[i] = 1 - m_f->getElasticity(1);
+		bargaining[i] = m_bargaining;// 1 - m_f->getElasticity(1);
 	}
 
 	soln.setBargaining(bargaining);

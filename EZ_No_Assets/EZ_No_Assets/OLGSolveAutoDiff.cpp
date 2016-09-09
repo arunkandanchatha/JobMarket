@@ -490,6 +490,14 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 					}//loop through 50
 					//at this point, arg is the correct wage
 					wages[i][j] = D_b + arg;
+					if (i < m_gens - 1) {
+						if (wages[i][j] < wages[i + 1][j]) {
+							std::cout << "ERROR! OLGSolveAutoDiff.solveProblem() - wages not non-decreasing. " << std::endl;
+							std::cout << "Wage(" << i << ", " << j << ") = " << wages[i][j] << std::endl;
+							std::cout << "Wage(" << i+1 << ", " << j << ") = " << wages[i+1][j] << std::endl;
+							exit(-1);
+						}
+					}
 				}
 			}
 		}
@@ -529,9 +537,17 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 		grad[i] = m_thetas[i].get_gradient();
 	}
 
-	for (int i = 0; i < m_gens; i++) {
+	for (int i = m_gens-1; i >= 0; i--) {
 		for (int j = 0; j < numStates; j++) {
 			(*m_wgs)(i,j) = adept::value(wages[i][j]);
+			if (i < m_gens - 1) {
+				if ((*m_wgs)(i, j) < (*m_wgs)(i + 1, j)) {
+					std::cout << "ERROR! OLGSolveAutoDiff.solveProblem() - wages not non-decreasing. " << std::endl;
+					std::cout << "Wage(" << i << ", " << j << ") = " << wages[i][j] << std::endl;
+					std::cout << "Wage(" << i + 1 << ", " << j << ") = " << wages[i + 1][j] << std::endl;
+					exit(-1);
+				}
+			}
 		}
 	}
 	return value(retVal);

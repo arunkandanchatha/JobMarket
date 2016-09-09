@@ -16,7 +16,9 @@ public:
 	double calculatedF(double newTheta) final;
 	double getElasticity(double newTheta) final;
 
+#if 0
 	double f() final;
+#endif
 	MatchingFunction *dTheta() final;
 };
 

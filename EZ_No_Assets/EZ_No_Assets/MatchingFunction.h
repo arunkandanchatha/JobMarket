@@ -8,7 +8,9 @@ public:
 	MatchingFunction(double parameter);
 	~MatchingFunction();
 
+#if 0
 	virtual double f() = 0;
+#endif
 	virtual MatchingFunction *dTheta() = 0;
 
 	double getTheta();

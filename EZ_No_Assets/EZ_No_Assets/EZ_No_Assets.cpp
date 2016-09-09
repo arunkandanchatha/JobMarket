@@ -66,21 +66,21 @@ int main(int argc, char *argv[])
 
 	if (which == 'e')
 	{
-		for (int i = 28; i < 29; i++) {
+		for (int i = 0; i < 1; i++) {
 			//solve for all wages
 			//create matching function targetting f=X and eta=Y
-			CobbDouglasMatching myF(fTarget, 0.01*i/*D_ETA*/);
+			CobbDouglasMatching myF(fTarget, D_ETA);
 
 			//create shock process
 			NoShocksProcess p;
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, D_y, D_S, myF, p, 1 - D_ETA, false);
+			OLGModel model(numGens, D_y, D_S, myF, p, 0.72, false);
 			model.solveWages();
-			//model.printWages();
+			model.printWages();
 			//solve for elasticity
-			std::cout << myF.getParameter() << "," << model.elasticityWRTymb() << std::endl;
-#if 1
+			std::cout << i*0.01 << "," << model.elasticityWRTymb() << std::endl;
+#if 0
 			std::vector<double> elast = model.wageElasticityWRTymb();
 			for (int j = 0; j < elast.size(); j++) {
 				std::cout << j << "," << elast[j] << std::endl;
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 				google::InitGoogleLogging(argv[0]);
 				Problem problem;
 				OLGSolveAutoDiff *myTemp = new OLGSolveAutoDiff(model.getSolver());
-				DynamicAutoDiffCostFunction<OLGSolveAutoDiff, 4>* cost_function = new DynamicAutoDiffCostFunction<OLGSolveAutoDiff,4>(myTemp);
+				DynamicAutoDiffCostFunction<OLGSolveAutoDiff, 4>* cost_function = new DynamicAutoDiffCostFunction<OLGSolveAutoDiff, 4>(myTemp);
 				cost_function->AddParameterBlock(solveIndex);
 				cost_function->SetNumResiduals(solveIndex);
 				std::vector<double *> parameter_block(1);
@@ -169,8 +169,8 @@ int main(int argc, char *argv[])
 
 				nlopt::opt opt(algoChoice, solveIndex);
 				opt.set_maxeval(solveIndex * 250);
-				opt.set_lower_bounds(MIN(x[0] / 2.0,0.00001));
-				opt.set_upper_bounds(MAX(2 * x[solveIndex - 1],5));
+				opt.set_lower_bounds(MIN(x[0] / 2.0, 0.00001));
+				opt.set_upper_bounds(MAX(2 * x[solveIndex - 1], 5));
 				opt.set_min_objective(OLGModel::wrap, &model);
 				opt.set_population(5 * solveIndex);
 
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
 						opt.add_inequality_constraint(myConstraint, &data[i], 0);
 					}
 				}
-				opt.set_stopval((solveIndex==numStates)?1e-4:1e-3);
+				opt.set_stopval((solveIndex == numStates) ? 1e-4 : 1e-3);
 
 				double minf = 200;
 				nlopt::result result;
@@ -210,6 +210,13 @@ int main(int argc, char *argv[])
 				std::vector<double> myTempVector;
 				OLGModel::printStatus(x, -1, minf);
 			}
+			if (x.size() == numStates) {
+				std::vector<double> elast = model.wageElasticityWRTymb();
+				for (int jjj = 0; jjj < elast.size(); jjj++) {
+					std::cout << jjj << "," << elast[jjj] << std::endl;
+				}
+			}
+
 			std::vector<double> newX(solveIndex + 2);
 			newX[0] = MAX(x[0] - 0.01, x[0]/2);
 			for (int myIndex = 0; myIndex < solveIndex; myIndex++) {
@@ -220,7 +227,6 @@ int main(int argc, char *argv[])
 			x.clear();
 			x.resize(solveIndex + 2);
 			x = newX;
-			//model.printWages();
 		}
 
 		return 1;

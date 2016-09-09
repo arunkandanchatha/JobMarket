@@ -2,11 +2,13 @@
 #define D_y (1.0)
 #define D_b (0.4)
 #define D_BETA (1.0 / 1.004)
-#define D_RHO (1.0)
+#define D_RHO (1)
 #define D_C (0.21)
 #define D_S (0.034)
 #define D_ETA (0.28)
 #define MAX_SHOCKS_PER_MONTH (10)
+#define D_DEATH (0) 
+//#define D_PROD_INCREASE (1)//(1.0014)
 
 #if 0
 #define D_MY_MU (15.14)

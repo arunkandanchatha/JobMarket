@@ -32,10 +32,12 @@ double deHaanMatching::calculatedF(double x)
 }
 #endif
 
+#if 0
 double deHaanMatching::f()
 {
 	return calculatedF(m_theta);
 }
+#endif
 
 MatchingFunction *deHaanMatching::dTheta()
 {

@@ -15,7 +15,9 @@ public:
 	CobbDouglasMatching(double fTarget, double etaTarget);
 	~CobbDouglasMatching();
 
+#if 0
 	double f() final;
+#endif
 	MatchingFunction *dTheta() final;
 };
 
