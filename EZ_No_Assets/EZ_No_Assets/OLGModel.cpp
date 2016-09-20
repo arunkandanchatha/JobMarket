@@ -19,7 +19,7 @@ OLGModel::OLGModel(unsigned int generations, double y, double s, MatchingFunctio
 		E_vals[genIndex] = MatrixXd(generations, sp.numStates());
 		W_vals[genIndex] = MatrixXd(generations, sp.numStates());
 		wages[genIndex] = MatrixXd(generations, sp.numStates());
-		for (int genIndex2 = 0; genIndex2 < generations; genIndex2++) {
+		for (int genIndex2 = 0; genIndex2 <= generations; genIndex2++) {
 			for (unsigned int i = 0; i < sp.numStates(); i++) {
 				m_Y[genIndex](genIndex2, i) = D_b + exp((*x)(i))*(pow(D_TENURE_INCREASE, genIndex)*pow(D_PROD_INCREASE, genIndex2)*y - D_b);
 			}
