@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 
 	if (which == 'e')
 	{
-		for (int i = 0; i < 100; i++) {
+		for (int i = 0; i < 1; i++) {
 			//solve for all wages
 			//create matching function targetting f=X and eta=Y
 			CobbDouglasMatching myF(fTarget, D_ETA);
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 			NoShocksProcess p;
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, D_y, D_S, myF, p, i*0.01, false);
+			OLGModel model(numGens, D_y, D_S, myF, p, 0.72, false);
 			model.solveWages();
 			model.printWages();
 			//solve for elasticity

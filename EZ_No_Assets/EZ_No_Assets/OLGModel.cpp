@@ -19,7 +19,7 @@ OLGModel::OLGModel(unsigned int generations, double y, double s, MatchingFunctio
 		E_vals[genIndex] = MatrixXd(generations, sp.numStates());
 		W_vals[genIndex] = MatrixXd(generations, sp.numStates());
 		wages[genIndex] = MatrixXd(generations, sp.numStates());
-		for (int genIndex2 = 0; genIndex2 <= generations; genIndex2++) {
+		for (int genIndex2 = 0; genIndex2 < generations; genIndex2++) {
 			for (unsigned int i = 0; i < sp.numStates(); i++) {
 				m_Y[genIndex](genIndex2, i) = D_b + exp((*x)(i))*(pow(D_TENURE_INCREASE, genIndex)*pow(D_PROD_INCREASE, genIndex2)*y - D_b);
 			}
@@ -51,7 +51,7 @@ OLGModel::~OLGModel()
 void OLGModel::solveWages()
 {
 	for (unsigned int i = m_gens - 1; i < m_gens; i--) {
-#pragma omp parallel for num_threads(3)
+//#pragma omp parallel for num_threads(3)
 		for (int tenureIndex = 0; tenureIndex <= i; tenureIndex++) {
 			for (int j = 0; j < m_sp->numStates(); j++) {
 #if 0
@@ -69,7 +69,6 @@ void OLGModel::solveWages()
 					VectorXd nextE = E_vals[tenureIndex + 1].row(i + 1);
 					VectorXd nextW = W_vals[tenureIndex + 1].row(i + 1);
 					*/
-					double nextWages = wages[tenureIndex + 1](i + 1, j);
 					double prodInState = m_Y[tenureIndex](i, j);
 
 					Generation toSolve(*this, &OLGModel::nonLinearWageEquation, j, i, tenureIndex/*, nextU, nextE, nextW */);
@@ -119,6 +118,8 @@ void OLGModel::solveWages()
 							exit(-1);
 						}
 						double del = x[0];
+						std::cout << "OLGModel.cpp - exiting " << del << std::endl;
+						exit(-1);
 						double newWages = D_b + del;
 
 #if 0
@@ -221,6 +222,13 @@ double OLGModel::nonLinearWageEquation(int state, int whichGen, int tenure, doub
 		//			t_calcE - t_calcU - bargaining / (1 - bargaining)*t_calcW*t_partialE_partialDel
 		);
 
+	std::cout << "trial=" << x << std::endl;
+	std::cout << "E=" << t_calcE << std::endl;
+	std::cout << "U=" << t_calcU << std::endl;
+	std::cout << "W=" << t_calcW << std::endl;
+	std::cout << "p=" << t_partialE_partialDel << std::endl;
+	std::cout << "r=" << retVal << std::endl;
+	std::cout << "============================" << std::endl;
 	if (retVal < 0) {
 		std::cout << "OLGModel.cpp-nonLinearWageEquation(): return value < 0. How is this possible?" << std::endl;
 		exit(-1);
