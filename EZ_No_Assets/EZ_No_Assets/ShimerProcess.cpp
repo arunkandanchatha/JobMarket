@@ -126,7 +126,7 @@ void ShimerProcess::printMatrix() {
 	using namespace std;
 
 	std::cout << "state,";
-	int maxVal = m_conditionalProbs.rows();
+	int maxVal = (int)m_conditionalProbs.rows();
 	for (int i = 0; i < maxVal; i++) {
 		std::cout << i;
 		if (i != m_conditionalProbs.size() - 1) {

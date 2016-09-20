@@ -26,22 +26,22 @@ public:
 	OLGSolveAutoDiff getSolver();
 
 protected:
-	double nonLinearWageEquation(int state, double x, VectorXd &Up1, VectorXd &Ep1, VectorXd &Wp1);
+	double nonLinearWageEquation(int state, int whichGen, int tenure, double x/*, VectorXd &Up1, VectorXd &Ep1, VectorXd &Wp1*/);
 
 private:
-	double calcU(int state, VectorXd &Up1, VectorXd &Ep1);
-	double calcE(int state, double delta, VectorXd &Up1, VectorXd &Ep1);
-	double calcW(int state, double delta, VectorXd &Wp1);
-	double partialE_partialDel(int state, double x, VectorXd &Up1, VectorXd &Ep1);
-	double expectedW(int state, bool forceNoShocks=false);
+	double calcU(int state, int whichGen/*, VectorXd &Up1, VectorXd &Ep1*/);
+	double calcE(int state, int whichGen, int tenure, double delta/*, VectorXd &Up1, VectorXd &Ep1*/);
+	double calcW(int state, int whichGen, int tenure, double delta/*, VectorXd &Wp1*/);
+	double partialE_partialDel(int state, int whichGen, int tenure, double x/*, VectorXd &Up1, VectorXd &Ep1*/);
+	double expectedW0(int state, bool forceNoShocks=false);
 
-	MatrixXd E_vals;
-	MatrixXd U_vals;
-	MatrixXd W_vals;
-	MatrixXd wages;
 	VectorXd m_thetas;
 
-	VectorXd m_Y;
+	std::vector<MatrixXd> E_vals;
+	MatrixXd U_vals;
+	std::vector<MatrixXd> W_vals;
+	std::vector<MatrixXd> wages;
+	std::vector<MatrixXd> m_Y;
 	const double m_Es;
 	const unsigned int m_gens;
 	MatchingFunction *m_f;
