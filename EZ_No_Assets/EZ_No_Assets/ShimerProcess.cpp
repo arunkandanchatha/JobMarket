@@ -23,7 +23,7 @@ void ShimerProcess::calculateConditionalProbabilities()
 	double lambda = states*m_gamma;
 	double delta = m_sigma / sqrt(lambda);
 
-	for (unsigned int i = 0; i < numStates(); i++) {
+	for (int i = 0; i < numStates(); i++) {
 		m_values(i) = ((int)i-states)*delta;
 	}
 
@@ -51,7 +51,7 @@ void ShimerProcess::calculateConditionalProbabilities()
 	//conditional of getting a shock. Obviously, the probability of 
 	//transitioning to i-1 is 1-p(i+1)
 	VectorXd posProb(numStates());
-	for (unsigned int i = 0; i < numStates(); i++) {
+	for (int i = 0; i < numStates(); i++) {
 //		posProb(i) = 0.5*(1 - m_values(i) / (states*delta));
 		posProb(i) = 0.5*(1 - m_values(i) / (1000*delta));
 	}

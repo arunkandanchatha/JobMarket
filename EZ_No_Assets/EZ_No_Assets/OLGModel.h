@@ -13,7 +13,7 @@ class OLGModel
 {
 	friend class Generation;
 public:
-	OLGModel(unsigned int generations, double y, double s, MatchingFunction &f, ShockProcess &sp, double bargaining, bool autoDiff);
+	OLGModel(int generations, double y, double s, MatchingFunction &f, ShockProcess &sp, double bargaining, bool autoDiff);
 	~OLGModel();
 	void solveWages();
 	double elasticityWRTymb();
@@ -43,7 +43,7 @@ private:
 	std::vector<MatrixXd> wages;
 	std::vector<MatrixXd> m_Y;
 	const double m_Es;
-	const unsigned int m_gens;
+	const int m_gens;
 	MatchingFunction *m_f;
 	ShockProcess *m_sp;
 	const double m_bargaining;

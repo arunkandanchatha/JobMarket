@@ -8,8 +8,8 @@
 #define D_ETA (0.28)
 #define MAX_SHOCKS_PER_MONTH (10)
 #define D_DEATH (0) 
-#define D_PROD_INCREASE (1)
-#define D_TENURE_INCREASE (1)
+#define D_PROD_INCREASE (1.001)
+#define D_TENURE_INCREASE (1.001)
 
 #if 0
 #define D_MY_MU (15.14)

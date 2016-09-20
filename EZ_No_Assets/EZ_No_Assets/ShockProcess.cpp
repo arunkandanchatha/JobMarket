@@ -19,9 +19,9 @@ pdfMatrix ShockProcess::nextPeriodPDF(unsigned int state)
 	return retVal;
 }
 
-unsigned int ShockProcess::numStates()
+int ShockProcess::numStates()
 {
-	return (unsigned int)m_values.size();
+	return (int)m_values.size();
 }
 
 const VectorXd* ShockProcess::states()

@@ -3,12 +3,17 @@
 #include "nlopt.hpp"
 #include <exception>
 
-OLGModel::OLGModel(unsigned int generations, double y, double s, MatchingFunction &f, ShockProcess &sp, double bargaining, bool autoDiff)
+OLGModel::OLGModel(int generations, double y, double s, MatchingFunction &f, ShockProcess &sp, double bargaining, bool autoDiff)
 	: m_gens(generations), m_f(&f), m_bargaining(bargaining), m_Es(s), m_sp(&sp), m_Y(generations),
 	E_vals(generations), U_vals(generations, sp.numStates()),
 	W_vals(generations), wages(generations),
 	m_thetas(sp.numStates()), m_autodiff(autoDiff)
 {
+	if (generations < 1) {
+		std::cout << "OLGModel.constructor() - cannot pass fewer than 1 generation. gens=" << generations << std::endl;
+		exit(-1);
+	}
+
 	for (unsigned int i = 0; i < sp.numStates(); i++) {
 		m_thetas[i] = f.getTheta();
 	}
@@ -50,7 +55,7 @@ OLGModel::~OLGModel()
 
 void OLGModel::solveWages()
 {
-	for (unsigned int i = m_gens - 1; i < m_gens; i--) {
+	for (int i = m_gens - 1; i >= 0; i--) {
 //#pragma omp parallel for num_threads(3)
 		for (int tenureIndex = 0; tenureIndex <= i; tenureIndex++) {
 			for (int j = 0; j < m_sp->numStates(); j++) {
@@ -118,8 +123,6 @@ void OLGModel::solveWages()
 							exit(-1);
 						}
 						double del = x[0];
-						std::cout << "OLGModel.cpp - exiting " << del << std::endl;
-						exit(-1);
 						double newWages = D_b + del;
 
 #if 0
@@ -171,14 +174,15 @@ double OLGModel::calcU(int state, int whichGen/*, VectorXd &Up1, VectorXd &Ep1*/
 	double total = 0;
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
-	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
+	int maxIters = MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1);
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
 		double nextProb = nextPDF(i, 0);
 		double calcF = m_f->calculatedF(m_thetas[state]);
-		double nextVal = D_DEATH*pow(1 - D_BETA, 1.0 / D_RHO)*D_b + (1 - D_DEATH)*pow(U_vals(whichGen+1, i) + calcF*(E_vals[0](whichGen+1,i) - U_vals(whichGen + 1, i)), D_RHO);
+		double nextVal = D_DEATH*(U_vals(m_gens-1,i))+(1-D_DEATH)*(pow(U_vals(whichGen+1, i) + calcF*(E_vals[0](whichGen+1,i) - U_vals(whichGen + 1, i)), D_RHO));
 		total += nextProb*nextVal;
 	}
 	total *= D_BETA;
-	double retVal = pow((1 - D_BETA)*D_b + total, 1.0 / D_RHO);
+	double retVal = pow((1 - D_BETA)*pow(D_b, D_RHO) + total, 1.0 / D_RHO);
 	return retVal;
 }
 
@@ -186,7 +190,8 @@ double OLGModel::calcE(int state, int whichGen, int tenure, double delta/*, Vect
 	double total = 0;
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
-	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
+	int maxIters = MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1);
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
 		double nextVal = D_DEATH*pow(1 - D_BETA, 1.0 / D_RHO)*D_b 
 			+ (1 - D_DEATH)*(pow(E_vals[tenure+1](whichGen+1,i) - m_Es*(E_vals[tenure + 1](whichGen + 1, i) - U_vals(whichGen+1,i)), D_RHO));
 		total += nextPDF(i, 0)*nextVal;
@@ -200,7 +205,8 @@ double OLGModel::calcW(int state, int whichGen, int whichTenure, double delta/*,
 	double total = 0;
 
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
-	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
+	int maxIters = MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1);
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
 		total += nextPDF(i, 0)*(1 - m_Es - D_DEATH)*W_vals[whichTenure + 1](whichGen + 1, i);
 	}
 	double retVal = m_Y[whichTenure](whichGen, state) - D_b - delta + D_BETA*total;
@@ -222,6 +228,7 @@ double OLGModel::nonLinearWageEquation(int state, int whichGen, int tenure, doub
 		//			t_calcE - t_calcU - bargaining / (1 - bargaining)*t_calcW*t_partialE_partialDel
 		);
 
+#if 0
 	std::cout << "trial=" << x << std::endl;
 	std::cout << "E=" << t_calcE << std::endl;
 	std::cout << "U=" << t_calcU << std::endl;
@@ -229,6 +236,7 @@ double OLGModel::nonLinearWageEquation(int state, int whichGen, int tenure, doub
 	std::cout << "p=" << t_partialE_partialDel << std::endl;
 	std::cout << "r=" << retVal << std::endl;
 	std::cout << "============================" << std::endl;
+#endif
 	if (retVal < 0) {
 		std::cout << "OLGModel.cpp-nonLinearWageEquation(): return value < 0. How is this possible?" << std::endl;
 		exit(-1);
@@ -256,7 +264,7 @@ double OLGModel::partialE_partialDel(int state, int whichGen, int tenure, double
 double OLGModel::expectedW0(int state, bool forceNoShocks) {
 	double total = 0;
 	if (forceNoShocks || (m_sp->numStates() == 1)) {
-		for (unsigned int i = 0; i < m_gens; i++) {
+		for (int i = 0; i < m_gens; i++) {
 			total += W_vals[0](i, state);
 		}
 		total /= m_gens;
@@ -266,7 +274,7 @@ double OLGModel::expectedW0(int state, bool forceNoShocks) {
 	pdfMatrix temp = m_sp->nextPeriodPDF(state);
 	for (int i = 0; i < m_sp->numStates(); i++) {
 		double tempVal = 0;
-		for (unsigned int j = 0; j < m_gens; j++) {
+		for (int j = 0; j < m_gens; j++) {
 			tempVal += W_vals[0](j, i);
 		}
 		tempVal /= m_gens;
@@ -390,8 +398,8 @@ double OLGModel::elasticityWRTs() {
 
 void OLGModel::printWages() {
 	std::cout.precision(15);
-	for (unsigned int i = 0; i < m_gens; i++) {
-		for (unsigned int k = 0; k <= i; k++) {
+	for (int i = 0; i < m_gens; i++) {
+		for (int k = 0; k <= ((D_TENURE_INCREASE==1)?0:i); k++) {
 			for (unsigned int j = 0; j < m_sp->numStates(); j++) {
 				std::cout << "Cohort_" << i << " (" << j << "," << k << "): y=" << m_Y[k](i, j) << " b=" << D_b
 					<< " w=" << wages[k](i, j) << std::endl;

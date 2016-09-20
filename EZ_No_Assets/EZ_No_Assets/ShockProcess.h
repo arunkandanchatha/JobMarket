@@ -14,7 +14,7 @@ public:
 
 	pdfMatrix nextPeriodPDF(unsigned int state);
 	const VectorXd* states();
-	unsigned int numStates();
+	int numStates();
 	void printStates();
 
 private:
