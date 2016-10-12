@@ -8,8 +8,8 @@ using adept::adouble;
 class OLGSolveAutoDiff
 {
 public:
-	OLGSolveAutoDiff(int gens, std::vector<double> ys, MatrixXd conditionalProbs, double parameter,
-		/*std::vector<double> bargaining,*/ double s, MatrixXd &wages);
+	OLGSolveAutoDiff(const int gens, std::vector<MatrixXd> ys, MatrixXd conditionalProbs, double parameter,
+		/*std::vector<double> bargaining,*/ double s, std::vector<MatrixXd> &wages);
 	OLGSolveAutoDiff(OLGSolveAutoDiff &orig);
 	~OLGSolveAutoDiff();
 
@@ -17,11 +17,11 @@ public:
 	double solveProblem(std::vector<double>& input, std::vector<double>&grad, std::vector<double>& bargaining);
 
 	void setBargaining(std::vector<double>& b);
-	MatrixXd* m_wgs;
+	std::vector<MatrixXd>* m_wgs;
 
 private:
 	const int m_gens;
-	std::vector<double> m_Y;
+	std::vector<MatrixXd> m_Y;
 	std::vector<double> m_bargaining;
 	MatrixXd m_conditionalProbs;
 

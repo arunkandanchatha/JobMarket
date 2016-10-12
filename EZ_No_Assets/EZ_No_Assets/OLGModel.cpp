@@ -3,30 +3,82 @@
 #include "nlopt.hpp"
 #include <exception>
 
-OLGModel::OLGModel(int generations, double y, double s, MatchingFunction &f, ShockProcess &sp, double bargaining, bool autoDiff)
-	: m_gens(generations), m_f(&f), m_bargaining(bargaining), m_Es(s), m_sp(&sp), m_Y(generations),
-	E_vals(generations), U_vals(generations, sp.numStates()),
+OLGModel::OLGModel(int generations, double y, double s, MatchingFunction &f, ShockProcess &sp, double bargaining, bool autoDiff) :
+#ifdef DO_TENURE_SOLVE
+	E_vals(generations), U_vals(generations),
 	W_vals(generations), wages(generations),
-	m_thetas(sp.numStates()), m_autodiff(autoDiff)
+	m_Y(generations),
+#else
+	E_vals(1), U_vals(1),
+	W_vals(1), wages(1),
+	m_Y(1),
+#endif
+	m_gens(generations), m_bargaining(bargaining), 
+	m_thetas(sp.numStates()), m_autodiff(autoDiff), m_Es(s), m_sp(&sp), m_f(&f),
+	habits(generations,2*generations+1), habitProb(generations, 2 * generations + 1),
+	oldWages(generations)
 {
-	if (generations < 1) {
-		std::cout << "OLGModel.constructor() - cannot pass fewer than 1 generation. gens=" << generations << std::endl;
+	if (generations < 3) {
+		std::cout << "OLGModel.constructor() - cannot pass fewer than " << 3 << " generations. gens=" << generations << std::endl;
 		exit(-1);
 	}
 
-	for (unsigned int i = 0; i < sp.numStates(); i++) {
+	for (int i = 0; i < generations; i++) {
+		oldWages[i].resize(WAGE_GRID_SIZE);
+	}
+
+	for (int i = 0; i < sp.numStates(); i++) {
 		m_thetas[i] = f.getTheta();
 	}
 
+	for (int i = 0; i < habits.rows(); i++) {
+		for (int j = 0; j < habits.cols(); j++) {
+			habits(i, j) = 0;
+			habitProb(i, j) = 0;
+		}
+	}
+
+	double probSuccess = 1 - D_S;
+	double habitIncrement = D_b / 4 / generations;
+	for (int trialIndex = 0; trialIndex < generations; trialIndex++) {
+		for (int successIndex = 0; successIndex <= trialIndex; successIndex++) {
+			int numFailures = trialIndex - successIndex;
+			habits(trialIndex, generations + successIndex - numFailures) = D_b / 2 + (successIndex - numFailures)*habitIncrement;
+			habitProb(trialIndex, generations + successIndex - numFailures) = nCr(trialIndex, successIndex)*pow(probSuccess, successIndex)*pow(1 - probSuccess, numFailures);
+		}
+	}
+
+	int solveGenerations = 1;
+
+#ifdef DO_TENURE_SOLVE
+	solveGenerations = generations;
+#endif
+
 	const VectorXd* x = sp.states();
-	for (int genIndex = 0; genIndex < generations; genIndex++) {
+	for (int genIndex = 0; genIndex < solveGenerations; genIndex++) {
 		m_Y[genIndex] = MatrixXd(generations, sp.numStates());
-		E_vals[genIndex] = MatrixXd(generations, sp.numStates());
-		W_vals[genIndex] = MatrixXd(generations, sp.numStates());
-		wages[genIndex] = MatrixXd(generations, sp.numStates());
+		U_vals[genIndex].resize(2 * generations + 1);
+		E_vals[genIndex].resize(2 * generations + 1);
+		W_vals[genIndex].resize(2 * generations + 1);
+		wages[genIndex].resize(2 * generations + 1);
+		for (int habitIndex = 0; habitIndex < 2 * generations + 1; habitIndex++) {
+			U_vals[genIndex][habitIndex].resize(WAGE_GRID_SIZE);
+			E_vals[genIndex][habitIndex].resize(WAGE_GRID_SIZE);
+			W_vals[genIndex][habitIndex].resize(WAGE_GRID_SIZE);
+			wages[genIndex][habitIndex].resize(WAGE_GRID_SIZE);
+			for (int wageIndex2 = 0; wageIndex2 < WAGE_GRID_SIZE; wageIndex2++) {
+				U_vals[genIndex][habitIndex][wageIndex2] = MatrixXd(generations, sp.numStates());
+				E_vals[genIndex][habitIndex][wageIndex2] = MatrixXd(generations, sp.numStates());
+				W_vals[genIndex][habitIndex][wageIndex2] = MatrixXd(generations, sp.numStates());
+				wages[genIndex][habitIndex][wageIndex2] = MatrixXd(generations, sp.numStates());
+			}
+		}
 		for (int genIndex2 = 0; genIndex2 < generations; genIndex2++) {
-			for (unsigned int i = 0; i < sp.numStates(); i++) {
-				m_Y[genIndex](genIndex2, i) = D_b + exp((*x)(i))*(pow(D_TENURE_INCREASE, genIndex)*pow(D_PROD_INCREASE, genIndex2)*y - D_b);
+			for (int i = 0; i < sp.numStates(); i++) {
+				m_Y[genIndex](genIndex2, i) = D_b + exp((*x)(i))*((pow(D_TENURE_INCREASE, genIndex))*pow(D_PROD_INCREASE, genIndex2)*y - D_b);
+			}
+			for (int i = 0; i < WAGE_GRID_SIZE; i++) {
+				oldWages[genIndex2][i] = ((double)i) / (WAGE_GRID_SIZE - 1)*(m_Y[genIndex](genIndex2, sp.numStates() - 1) - D_b);
 			}
 		}
 	}
@@ -34,8 +86,8 @@ OLGModel::OLGModel(int generations, double y, double s, MatchingFunction &f, Sho
 	//error check
 	bool foundError = false;
 	for (int genIndex = 0; genIndex < generations; genIndex++) {
-		for (int genIndex2 = 0; genIndex2 < generations; genIndex2++) {
-			for (unsigned int i = 0; i < sp.numStates(); i++) {
+		for (int genIndex2 = 0; genIndex2 < solveGenerations; genIndex2++) {
+			for (int i = 0; i < sp.numStates(); i++) {
 				if (m_Y[genIndex2](genIndex, i) < D_b) {
 					foundError = true;
 					std::cout << "Error! OLGModel.constructor(): Y_" << genIndex2 << "(" << genIndex << "," << i << ")="
@@ -53,190 +105,235 @@ OLGModel::~OLGModel()
 {
 }
 
+double OLGModel::adjustmentCost(const double original, const double updateVal) {
+	if (original == D_b) {
+		return 0;
+	}
+	return 0;// ABS(updateVal - original);
+}
+
 void OLGModel::solveWages()
 {
-	for (int i = m_gens - 1; i >= 0; i--) {
-//#pragma omp parallel for num_threads(3)
-		for (int tenureIndex = 0; tenureIndex <= i; tenureIndex++) {
+	for (int tenureIndex = 0; tenureIndex < m_Y.size(); tenureIndex++) {
+		for (int i = m_gens - 1; i >= 0; i--) {
+#pragma omp parallel for num_threads(3)
 			for (int j = 0; j < m_sp->numStates(); j++) {
-#if 0
-				std::cout << i << ":" << j << std::endl;
-#endif
-				if (i == m_gens - 1) {
-					E_vals[tenureIndex](i, j) = pow(1 - D_BETA, 1.0 / D_RHO)*D_b;
-					U_vals(i, j) = pow(1 - D_BETA, 1.0 / D_RHO)*D_b;
-					W_vals[tenureIndex](i, j) = 0;
-					wages[tenureIndex](i, j) = D_b;
-				}
-				else {
-					/*
-					VectorXd nextU = U_vals.row(i + 1);
-					VectorXd nextE = E_vals[tenureIndex + 1].row(i + 1);
-					VectorXd nextW = W_vals[tenureIndex + 1].row(i + 1);
-					*/
-					double prodInState = m_Y[tenureIndex](i, j);
+				for (int habitIndex = 0; habitIndex < habits.cols(); habitIndex++) {
+					for (int wageIndex = 0; wageIndex < WAGE_GRID_SIZE; wageIndex++) {
+						if (i == m_gens - 1) {
+							E_vals[tenureIndex][habitIndex][wageIndex](i, j) = pow(1 - D_BETA, 1.0 / D_RHO)*(D_b - (1.0*habitIndex) / WAGE_GRID_SIZE * D_b / 2);
+							U_vals[tenureIndex][habitIndex][wageIndex](i, j) = pow(1 - D_BETA, 1.0 / D_RHO)*(D_b - (1.0*habitIndex) / WAGE_GRID_SIZE * D_b / 2);
+							W_vals[tenureIndex][habitIndex][wageIndex](i, j) = 0;
+							wages[tenureIndex][habitIndex][wageIndex](i, j) = D_b;
+						}
+						else {
+							double prodInState = m_Y[tenureIndex](i, j);
 
-					Generation toSolve(*this, &OLGModel::nonLinearWageEquation, j, i, tenureIndex/*, nextU, nextE, nextW */);
-					nlopt::opt opt(nlopt::LN_BOBYQA, 1);
-					//				double lwbnd = latestWages - D_b;
-					double lwbnd = 0;
-					double upbnd = prodInState - D_b;
+							Generation toSolve(*this, &OLGModel::nonLinearWageEquation, i, j, habitIndex, tenureIndex, wageIndex);
+							nlopt::opt opt(nlopt::LN_BOBYQA, 1);
+							double lwbnd = 0;
+							double upbnd = prodInState - D_b;
 
-#if 0
-					//don't think we can do this anymore
-					if (lwbnd == upbnd) {
-						wages(i, j) = latestWages;
-						U_vals(i, j) = U_vals(i + 1, j);
-						E_vals(i, j) = E_vals(i + 1, j);
-						W_vals(i, j) = W_vals(i + 1, j);
+							opt.set_lower_bounds(lwbnd);
+							opt.set_upper_bounds(upbnd);
+							opt.set_min_objective(Generation::wrap, &toSolve);
+
+							opt.set_xtol_rel(1e-10);
+
+							std::vector<double> x(1);
+							x[0] = (lwbnd + upbnd) / 2;
+
+							double minf;
+							nlopt::result result;
+							try {
+								result = opt.optimize(x, minf);
+							}
+							catch (const nlopt::roundoff_limited& e) {
+								std::cout << e.what() << std::endl;
+							}
+							catch (const nlopt::forced_stop& e) {
+								std::cout << e.what() << std::endl;
+								exit(-1);
+							}
+							catch (const std::runtime_error& e) {
+								std::cout << e.what() << std::endl;
+								exit(-1);
+							}
+							catch (const std::exception &e) {
+								std::cout << e.what() << std::endl;
+								exit(-1);
+							}
+							double del = x[0];
+							double newWages = D_b + del;
+
+							if (m_Y[tenureIndex](i, j) - newWages < 0) {
+								std::cout << "OLGModel-solveWages(): cohort " << i << " shock " << j << " tenure " << tenureIndex << " has y-w<0. HOW?" << std::endl;
+								std::cout << "y: " << m_Y[tenureIndex](i, j) << "   w: " << newWages << "   y-w(T+1): " << m_Y[tenureIndex](i, j) - newWages << std::endl;
+								for (int lll = m_gens - 1; lll > i; lll--) {
+									std::cout << "y-w(" << lll << "): " << m_Y[tenureIndex](lll, j) - wages[tenureIndex][habitIndex][wageIndex](lll, j) << std::endl;
+								}
+								double val1 = nonLinearWageEquation(i, j, habitIndex, tenureIndex, wageIndex, del);
+								double val2 = nonLinearWageEquation(i, j, habitIndex, tenureIndex, wageIndex, m_Y[tenureIndex](i, j) - D_b);
+								std::cout << "value: " << val1 << std::endl;
+								std::cout << "value0: " << val2 << std::endl;
+								std::cout << "diff: " << val2 - val1 << std::endl;
+								exit(-1);
+							}
+
+							wages[tenureIndex][habitIndex][wageIndex](i, j) = newWages;
+							U_vals[tenureIndex][habitIndex][wageIndex](i, j) = calcU(i, j, habitIndex, tenureIndex, wageIndex);
+							E_vals[tenureIndex][habitIndex][wageIndex](i, j) = calcE(i, j, habitIndex, tenureIndex, wageIndex, del);
+							W_vals[tenureIndex][habitIndex][wageIndex](i, j) = calcW(i, j, habitIndex, tenureIndex, wageIndex, del);
+						}
 					}
-					else {
-#endif
-
-						opt.set_lower_bounds(lwbnd);
-						opt.set_upper_bounds(upbnd);
-						opt.set_min_objective(Generation::wrap, &toSolve);
-
-						opt.set_xtol_rel(1e-10);
-
-						std::vector<double> x(1);
-						x[0] = (lwbnd + upbnd) / 2;
-
-						double minf;
-						nlopt::result result;
-						try {
-							result = opt.optimize(x, minf);
-						}
-						catch (const nlopt::roundoff_limited& e) {
-							std::cout << e.what() << std::endl;
-						}
-						catch (const nlopt::forced_stop& e) {
-							std::cout << e.what() << std::endl;
-							exit(-1);
-						}
-						catch (const std::runtime_error& e) {
-							std::cout << e.what() << std::endl;
-							exit(-1);
-						}
-						catch (const std::exception &e) {
-							std::cout << e.what() << std::endl;
-							exit(-1);
-						}
-						double del = x[0];
-						double newWages = D_b + del;
-
-#if 0
-						if (newWages < latestWages) {
-							std::cout << "OLGModel-solveWages(): cohort " << i << " shock " << j << " has wageT < wage(T+1). HOW?" << std::endl;
-							std::cout << "w" << i << "=" << newWages << ", w" << i + 1 << "=" << latestWages << std::endl;
-							std::cout << "diff: " << newWages - latestWages << std::endl;
-							std::cout << "y: " << m_Y(i, j) << "   y-w(T+1): " << m_Y(i, j) - latestWages << std::endl;
-							for (int lll = m_gens - 1; lll > i; lll--) {
-								std::cout << "y-w(" << lll << "): " << m_Y(i, j) - wages(lll, j) << std::endl;
-							}
-							std::cout << "value: " << nonLinearWageEquation(j, del, i, latestU, latestE, latestW) << std::endl;
-							std::cout << "value0: " << nonLinearWageEquation(j, m_Y(i, j) - D_b, i, latestU, latestE, latestW) << std::endl;
-							exit(-1);
-						}
-#endif
-						if (m_Y[tenureIndex](i, j) - newWages < 0) {
-							std::cout << "OLGModel-solveWages(): cohort " << i << " shock " << j << " tenure " << tenureIndex << " has y-w<0. HOW?" << std::endl;
-							std::cout << "y: " << m_Y[tenureIndex](i, j) << "   w: " << newWages << "   y-w(T+1): " << m_Y[tenureIndex](i, j) - newWages << std::endl;
-							for (int lll = m_gens - 1; lll > i; lll--) {
-								std::cout << "y-w(" << lll << "): " << m_Y[tenureIndex](lll, j) - wages[tenureIndex](lll, j) << std::endl;
-							}
-							double val1 = nonLinearWageEquation(j, i, tenureIndex, del/*, nextU, nextE, nextW*/);
-							double val2 = nonLinearWageEquation(j, i, tenureIndex, m_Y[tenureIndex](i, j) - D_b/*, nextU, nextE, nextW*/);
-							std::cout << "value: " << val1 << std::endl;
-							std::cout << "value0: " << val2 << std::endl;
-							std::cout << "diff: " << val2 - val1 << std::endl;
-							exit(-1);
-						}
-
-						wages[tenureIndex](i, j) = newWages;
-						if (tenureIndex == 0) {
-							//VectorXd tempNextE = E_vals[0].row(i + 1);
-							U_vals(i, j) = calcU(j, i/*, nextU, tempNextE*/);
-						}
-						E_vals[tenureIndex](i, j) = calcE(j, i, tenureIndex, del/*, nextU, nextE*/);
-						W_vals[tenureIndex](i, j) = calcW(j, i, tenureIndex, del/*, nextW*/ );
 				}
 			}
 		}
 	}
-#if 0
-	}
-#endif
 	return;
 }
 
-double OLGModel::calcU(int state, int whichGen/*, VectorXd &Up1, VectorXd &Ep1*/) {
-	double total = 0;
+double OLGModel::calcU(int generation, int state, int habit, int tenure, int wageLastPeriod) {
 
+#ifndef DO_TENURE_SOLVE
+	if (tenure != 0) {
+		std::cout << "Error. OLGModel.cpp-calcU(): Not solving for tenure. Should not get tenure input != 0. tenureInput="
+			<< tenure << std::endl;
+		exit(-1);
+	}
+#endif
+
+	double total = 0;
+	int whichGen = generation;
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
 	int maxIters = MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1);
+	int nextHabit = MAX(habit - 1, 0);
 	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
 		double nextProb = nextPDF(i, 0);
 		double calcF = m_f->calculatedF(m_thetas[state]);
-		double nextVal = D_DEATH*(U_vals(m_gens-1,i))+(1-D_DEATH)*(pow(U_vals(whichGen+1, i) + calcF*(E_vals[0](whichGen+1,i) - U_vals(whichGen + 1, i)), D_RHO));
-		total += nextProb*nextVal;
+		double deathPart = D_DEATH*(U_vals[TENURE_INCREASE_UU(tenure)][nextHabit][0](m_gens - 1, i));
+		double nextVal = (1-D_DEATH)*(pow(U_vals[TENURE_INCREASE_UU(tenure)][nextHabit][0](whichGen+1, i)
+			+ calcF*(E_vals[TENURE_INCREASE_UE(tenure)][nextHabit][0](whichGen+1,i)
+				- U_vals[TENURE_INCREASE_UU(tenure)][nextHabit][0](whichGen + 1, i)), D_RHO));
+		total += nextProb*(deathPart+nextVal);
 	}
 	total *= D_BETA;
-	double retVal = pow((1 - D_BETA)*pow(D_b, D_RHO) + total, 1.0 / D_RHO);
+	double currentConsUtil = (1 - D_BETA)*pow(D_b-habits(generation,habit), D_RHO);
+	double retVal = pow(currentConsUtil + total, 1.0 / D_RHO);
 	return retVal;
 }
 
-double OLGModel::calcE(int state, int whichGen, int tenure, double delta/*, VectorXd &Up1, VectorXd &Ep1*/) {
-	double total = 0;
+double OLGModel::calcE(int generation, int state, int habit, int tenure, int wageLastPeriod, double delta) {
+#ifndef DO_TENURE_SOLVE
+	if (tenure != 0) {
+		std::cout << "Error. OLGModel.cpp-calcE(): Not solving for tenure. Should not get tenure input != 0. tenureInput="
+			<< tenure << std::endl;
+		exit(-1);
+	}
+#endif
 
+	double total = 0;
+	int whichGen = generation;
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
 	int maxIters = MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1);
+
+	std::vector<std::vector<double>> eVec(maxIters);
+	for (int i = 0; i < maxIters; i++) {
+		eVec[i].resize(WAGE_GRID_SIZE);
+	}
+
+	int nextHabit = MIN(habit + 1, 2*m_gens);
+	int zIndex = 0;
 	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
-		double nextVal = D_DEATH*pow(1 - D_BETA, 1.0 / D_RHO)*D_b 
-			+ (1 - D_DEATH)*(pow(E_vals[tenure+1](whichGen+1,i) - m_Es*(E_vals[tenure + 1](whichGen + 1, i) - U_vals(whichGen+1,i)), D_RHO));
-		total += nextPDF(i, 0)*nextVal;
+		for (int j = 0; j < WAGE_GRID_SIZE; j++) {
+			eVec[zIndex][j] = E_vals[TENURE_INCREASE_EE(tenure)][nextHabit][j](whichGen + 1, i);
+		}
+		zIndex++;
+	}
+
+	zIndex = 0;
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
+		double deathPart = D_DEATH*pow(1 - D_BETA, 1.0 / D_RHO)*(D_b - habits(whichGen, nextHabit));
+		//double wageNow = D_b + delta;
+
+		//interpolate E value using wageNow
+		double nextE = utilities::interpolate(oldWages[whichGen], eVec[zIndex], delta);
+		zIndex++;
+		double nextU = U_vals[TENURE_INCREASE_EU(tenure)][nextHabit][0](whichGen + 1, i);
+
+		double nextVal = (1 - D_DEATH)*(pow(nextE - m_Es*(nextE - nextU), D_RHO));
+		total += nextPDF(i, 0)*(deathPart+nextVal);
 	}
 	total *= D_BETA;
-	double retVal = pow((1 - D_BETA)*pow(D_b + delta, D_RHO) + total, 1.0 / D_RHO);
+	double retVal = pow((1 - D_BETA)*pow(D_b + delta - habits(generation, habit), D_RHO) + total, 1.0 / D_RHO);
 	return retVal;
 }
 
-double OLGModel::calcW(int state, int whichGen, int whichTenure, double delta/*, VectorXd &Wp1*/) {
-	double total = 0;
+double OLGModel::calcW(int generation, int state, int habit, int tenure, int wageLastPeriod, double delta) {
+#ifndef DO_TENURE_SOLVE
+	if (tenure != 0) {
+		std::cout << "Error. OLGModel.cpp-calcW(): Not solving for tenure. Should not get tenure input != 0. tenureInput="
+			<< tenure << std::endl;
+		exit(-1);
+	}
+#endif
 
+	double total = 0;
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
 	int maxIters = MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1);
-	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
-		total += nextPDF(i, 0)*(1 - m_Es - D_DEATH)*W_vals[whichTenure + 1](whichGen + 1, i);
+	int whichGen = generation;
+
+	std::vector<std::vector<double>> wVec(maxIters);
+	for (int i = 0; i < maxIters; i++) {
+		wVec[i].resize(WAGE_GRID_SIZE);
 	}
-	double retVal = m_Y[whichTenure](whichGen, state) - D_b - delta + D_BETA*total;
+
+	int zIndex = 0;
+	int nextHabit = MIN(habit + 1, 2 * m_gens);
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
+		for (int j = 0; j < WAGE_GRID_SIZE; j++) {
+			wVec[zIndex][j] = W_vals[TENURE_INCREASE_EE(tenure)][nextHabit][j](whichGen + 1, i);
+		}
+		zIndex++;
+	}
+
+	zIndex = 0;
+	//double wageThisPeriod = D_b + delta;
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
+		//interpolate W values using wageNow
+		double nextW = utilities::interpolate(oldWages[whichGen], wVec[zIndex],	delta);
+		zIndex++;
+		total += nextPDF(i, 0)*(1 - m_Es - D_DEATH)*nextW;
+	}
+	double retVal = m_Y[tenure](whichGen, state) - D_b - delta 
+		- adjustmentCost(oldWages[whichGen][wageLastPeriod],delta) + D_BETA*total;
 	return retVal;
 }
 
-double OLGModel::nonLinearWageEquation(int state, int whichGen, int tenure, double x/*, VectorXd& Up1, VectorXd& Ep1, VectorXd& Wp1*/) {
-	double t_calcE = calcE(state, whichGen, tenure, x/*, Up1, Ep1*/);
-	double t_calcU = calcU(state, whichGen/*, Up1, Ep1*/);
-	double t_calcW = calcW(state, whichGen, tenure, x/*, Wp1*/);
-	double t_partialE_partialDel = partialE_partialDel(state, whichGen, tenure, x/*, Up1, Ep1*/);
+double OLGModel::nonLinearWageEquation(int generation, int state, int habit, int tenure, int wageLastPeriod, double x) {
+
+#ifndef DO_TENURE_SOLVE
+	if (tenure != 0) {
+		std::cout << "Error. OLGModel.cpp-nonLinearWageEquation(): Not solving for tenure. "
+			<<"Should not get tenure input != 0. tenureInput="
+			<< tenure << std::endl;
+		exit(-1);
+	}
+#endif
+
+	int whichGen = generation;
+	double t_calcE = calcE(generation, state, habit, tenure, wageLastPeriod, x);
+	double t_calcU = calcU(generation, state, habit, tenure, wageLastPeriod);
+	double t_calcW = calcW(generation, state, habit, tenure, wageLastPeriod, x);
+	double t_partialE_partialDel = partialE_partialDel(generation, state, habit, tenure, wageLastPeriod, x);
 
 	if (m_bargaining == 1) {
 		return -(t_calcE - t_calcU);
 	}
-	//double bargaining = 1 - m_f->getElasticity(m_thetas(state));
 	double retVal = ABS(
 		t_calcE - t_calcU - m_bargaining / (1 - m_bargaining)*t_calcW*t_partialE_partialDel
-		//			t_calcE - t_calcU - bargaining / (1 - bargaining)*t_calcW*t_partialE_partialDel
 		);
 
-#if 0
-	std::cout << "trial=" << x << std::endl;
-	std::cout << "E=" << t_calcE << std::endl;
-	std::cout << "U=" << t_calcU << std::endl;
-	std::cout << "W=" << t_calcW << std::endl;
-	std::cout << "p=" << t_partialE_partialDel << std::endl;
-	std::cout << "r=" << retVal << std::endl;
-	std::cout << "============================" << std::endl;
-#endif
 	if (retVal < 0) {
 		std::cout << "OLGModel.cpp-nonLinearWageEquation(): return value < 0. How is this possible?" << std::endl;
 		exit(-1);
@@ -244,41 +341,122 @@ double OLGModel::nonLinearWageEquation(int state, int whichGen, int tenure, doub
 	return retVal;
 }
 
-double OLGModel::partialE_partialDel(int state, int whichGen, int tenure, double x/*, VectorXd& Up1, VectorXd& Ep1*/) {
-	double total = 0;
+double OLGModel::partialE_partialDel(int generation, int state, int habit, int tenure, int wageLastPeriod, double delta) {
+#ifndef DO_TENURE_SOLVE
+	if (tenure != 0) {
+		std::cout << "Error. OLGModel.cpp-partialE_partialDel(): Not solving for tenure."
+			<<" Should not get tenure input != 0. tenureInput="
+			<< tenure << std::endl;
+		exit(-1);
+	}
+#endif
 
+	double total = 0;
+	int whichGen = generation;
 	pdfMatrix& nextPDF = m_sp->nextPeriodPDF(state);
-	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1); i++) {
-		double nextVal = D_DEATH*pow(1 - D_BETA, 1.0 / D_RHO)*D_b 
-			+ (1 - D_DEATH)*(pow(E_vals[tenure+1](whichGen+1,i) - m_Es*(E_vals[tenure + 1](whichGen + 1, i) - U_vals(whichGen+1,i)), D_RHO));
-		total += nextPDF(i, 0)*nextVal;
+	int maxIters = MIN(m_sp->numStates(), state + MAX_SHOCKS_PER_MONTH + 1);
+
+	std::vector<std::vector<double>> eVec(maxIters);
+	for (int i = 0; i < maxIters; i++) {
+		eVec[i].resize(WAGE_GRID_SIZE);
+	}
+
+	int nextHabit = MIN(habit + 1, 2 * m_gens);
+	int zIndex = 0;
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
+		for (int j = 0; j < WAGE_GRID_SIZE; j++) {
+			eVec[zIndex][j] = E_vals[TENURE_INCREASE_EE(tenure)][nextHabit][j](whichGen + 1, i);
+		}
+		zIndex++;
+	}
+
+	zIndex = 0;
+	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
+//		double wageNow = D_b + delta;
+
+		//interpolate E value using wageNow
+		double nextE = utilities::interpolate(oldWages[whichGen], eVec[zIndex], delta);
+		zIndex++;
+		double nextU = U_vals[TENURE_INCREASE_EU(tenure)][nextHabit][0](whichGen + 1, i);
+
+		double deathPart = D_DEATH*pow(1 - D_BETA, 1.0 / D_RHO)*(D_b - habits(whichGen, nextHabit));
+		double nextVal = (1 - D_DEATH)*(pow(nextE - m_Es*(nextE - nextU), D_RHO));
+		total += nextPDF(i, 0)*(deathPart+nextVal);
 	}
 	total *= D_BETA;
 
-
-	double insideBracket = (1 - D_BETA)*pow(D_b + x, D_RHO) + total;
-	double dE_dDel = pow(insideBracket, 1.0 / D_RHO - 1)*(1 - D_BETA)*pow(D_b + x, D_RHO - 1);
+	double insideBracket = (1 - D_BETA)*pow(D_b + delta - habits(generation, habit), D_RHO) + total;
+	double dE_dDel = pow(insideBracket, 1.0 / D_RHO - 1)*(1 - D_BETA)*pow(D_b + delta - habits(generation, habit), D_RHO - 1);
 	return dE_dDel;
+}
+
+VectorXd OLGModel::getSteadyStateDistrib(double jobFind) {
+	if (jobFind > 1) {
+		std::cout << "OLGModel.cpp-getSteadStateDistrib() - probability of finding a job must be <= 1" << std::endl;
+		exit(-1);
+	}
+	if (jobFind < 0) {
+		std::cout << "OLGModel.cpp-getSteadStateDistrib() - probability of finding a job must be >= 0" << std::endl;
+		exit(-1);
+	}
+	MatrixXd trans(m_gens, m_gens);
+	VectorXd startDistrib(m_gens);
+	for (int i = 0; i < m_gens; i++) {
+		for (int j = 0; j < m_gens; j++) {
+			trans(i, j) = 0;
+		}
+		if (i == 0) {
+			trans(i, i) = 1-jobFind;
+			trans(i, i + 1) = jobFind;
+		}
+		else if (i == (m_gens - 1)) {
+			trans(i, 0) = (1-jobFind)*D_S;
+			trans(i, 1) = jobFind*D_S;
+			trans(i, i) = 1 - D_S;
+		}
+		else {
+			trans(i, 0) = (1 - jobFind)*D_S;
+			trans(i, 1) = jobFind*D_S;
+			trans(i, i + 1) = 1 - D_S;
+		}
+		startDistrib(i) = 0;
+	}
+	startDistrib(0) = 1;
+	MatrixXd transT = trans.transpose();
+
+	VectorXd mystat(m_gens);
+	mystat = transT*startDistrib;
+	for (int i = 0; i < 1000 * m_gens; i++) {
+		mystat = transT*mystat;
+	}
+	return mystat;
 }
 
 double OLGModel::expectedW0(int state, bool forceNoShocks) {
 	double total = 0;
+	double denom = (1 - pow(D_DEATH, m_gens)) / (1 - D_DEATH);
 	if (forceNoShocks || (m_sp->numStates() == 1)) {
-		for (int i = 0; i < m_gens; i++) {
-			total += W_vals[0](i, state);
+		for (int i = 0; i < m_gens-1; i++) {
+			for (int habitIndex = m_gens - 1 - i; habitIndex <= m_gens - 1 + i; habitIndex++) {
+				double wval = W_vals[0][habitIndex][0](i, state);
+				double myChange = (pow(1 - D_DEATH, i) / denom)*habitProb(i, habitIndex)*wval;
+				total += myChange;
+			}
 		}
-		total /= m_gens;
 		return total;
 	}
 
 	pdfMatrix temp = m_sp->nextPeriodPDF(state);
-	for (int i = 0; i < m_sp->numStates(); i++) {
+	for (int j = 0; j < m_sp->numStates(); j++) {
 		double tempVal = 0;
-		for (int j = 0; j < m_gens; j++) {
-			tempVal += W_vals[0](j, i);
+		for (int i = 0; i < m_gens-1; i++) {
+			for (int habitIndex = m_gens - 1 - i; habitIndex <= m_gens - 1 + i; habitIndex++) {
+				double wval = W_vals[0][habitIndex][0](i, j);
+				double myChange = (pow(1 - D_DEATH, i) / denom)*habitProb(i, habitIndex)*wval;
+				tempVal += myChange;
+			}
 		}
-		tempVal /= m_gens;
-		total += tempVal * temp(i, 0);
+		total += tempVal * temp(j, 0);
 	}
 	return total;
 }
@@ -291,19 +469,25 @@ double OLGModel::elasticityWRTymb() {
 
 	Ey = 0;
 	double Eb = 0;
+	double dEy = 0;
+	double denom1 = (1 - pow(D_DEATH, m_gens)) / (1 - D_DEATH);
 	for (int i = 0; i < m_gens-1; i++) {
-		Ey += m_Y[0](i, expectedState);
-		Eb += D_b;
+		Ey += (pow(1 - D_DEATH, i) / denom1)*m_Y[0](i, expectedState);
+		dEy += (pow(1 - D_DEATH, i) / denom1)*
+			(yChange.m_Y[0](i, expectedState) - m_Y[0](i, expectedState));
 	}
-	Ey /= m_gens-1;
-	Eb /= m_gens-1;
+	Eb = D_b;
+
 	thetaChange.solveWages();
 	yChange.solveWages();
+	//yChange.solveWithWages(wages);
 
 	double EW = expectedW0(expectedState, true);
 	double tEW = thetaChange.expectedW0(expectedState, true);
 	double yEW = yChange.expectedW0(expectedState, true);
-	double num = (Ey - Eb)*(yEW - EW) / (1.0001*Ey - Ey);
+
+	double num = (Ey - Eb)*(yEW - EW) / (dEy);
+
 	double denom = (1 - m_f->getElasticity(m_thetas(expectedState)))*EW - m_f->getTheta()*
 		(tEW - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
 
@@ -399,10 +583,20 @@ double OLGModel::elasticityWRTs() {
 void OLGModel::printWages() {
 	std::cout.precision(15);
 	for (int i = 0; i < m_gens; i++) {
-		for (int k = 0; k <= ((D_TENURE_INCREASE==1)?0:i); k++) {
-			for (unsigned int j = 0; j < m_sp->numStates(); j++) {
-				std::cout << "Cohort_" << i << " (" << j << "," << k << "): y=" << m_Y[k](i, j) << " b=" << D_b
-					<< " w=" << wages[k](i, j) << std::endl;
+		for (int j = 0; j < m_sp->numStates(); j++) {
+			for (int habitIndex = 0; habitIndex < habits.row(0).size(); habitIndex++) {
+#ifdef DO_TENURE_SOLVE
+				for (int k = 0; k <= i; k++)
+#else
+				for (int k = 0; k < 1; k++)
+#endif
+				{
+					for (int wageIndex = 0; wageIndex < WAGE_GRID_SIZE; wageIndex++) {
+						std::cout << "Cohort_" << i << " (" << j << "," << habitIndex << ","
+							<< k << "," << wageIndex <<"): y=" << m_Y[k](i, j) << " b=" << D_b
+							<< " w=" << wages[k][habitIndex][wageIndex](i, j) << std::endl;
+					}
+				}
 			}
 		}
 	}
@@ -411,10 +605,6 @@ void OLGModel::printWages() {
 
 double OLGModel::operator()(const std::vector<double> &x, std::vector<double> &grad)
 {
-	std::cout << "OLGModel::operator() not implemented yet." << std::endl;
-	exit(-1);
-	return 0;
-#if 0
 	static int counter = 0;
 
 	if (x.size() != m_sp->numStates()) {
@@ -436,28 +626,27 @@ double OLGModel::operator()(const std::vector<double> &x, std::vector<double> &g
 	else {
 		std::cout << "ERROR! OLGModel.cpp-operator() - need to fix autodiff to account for different productivity." << std::endl;
 		exit(-1);
-		std::vector<double> myYs(m_Y.size());
-		VectorXd::Map(&myYs[0], m_Y.size()) = m_Y;
+#if 0
 		std::vector<double> bargaining(m_Y.size());
 		for (int i = 0; i < x.size(); i++) {
 			bargaining[i] = m_bargaining;// 1 - m_f->getElasticity(m_thetas[i]);
 		}
-		OLGSolveAutoDiff soln(m_gens, myYs, m_sp->getProbMatrix(), m_f->getParameter()/*, bargaining*/, m_Es, wages);
+		OLGSolveAutoDiff soln(m_gens, m_Y, m_sp->getProbMatrix(), m_f->getParameter()/*, bargaining*/, m_Es, wages);
 
 		std::vector<double> myThetas(m_thetas.size());
 		VectorXd::Map(&myThetas[0], m_thetas.size()) = m_thetas;
 		retVal = soln.solveProblem(myThetas, grad, bargaining);
+#endif
 	}
 	return sqrt(retVal);
-#endif
 }
 
 OLGSolveAutoDiff OLGModel::getSolver() {
 	std::cout << "OLGModel::getSolver() not implemented yet." << std::endl;
 	exit(-1);
-	std::vector<double> temp(2);
+	std::vector<MatrixXd> temp(2);
 	MatrixXd temp2;
-	MatrixXd temp3;
+	std::vector<MatrixXd> temp3(2);
 	OLGSolveAutoDiff soln(1, temp, temp2, 0.0, 0.0, temp3);
 
 	return soln;
@@ -532,3 +721,31 @@ void OLGModel::printStatus(const std::vector<double>& solution, int numCalls, do
 	return;
 }
 
+#if 0
+void OLGModel::printWageElasticity() {
+	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
+	double Ey = m_Y[0](0, expectedState);
+	OLGModel yChange(m_gens, 1.0001*(Ey-D_b)+D_b, m_Es, *m_f, *m_sp, m_bargaining, false);
+
+	yChange.solveWages();
+
+	std::cout << "generation,tenure,z,y,y-b,w,w-b,y',y'-b,w',w'-b,elast" << std::endl;
+	for (int gen_i = 0; gen_i < m_gens-1; gen_i++) {
+		for (int tenure_i = 0; tenure_i <= ((D_TENURE_INCREASE == 1) ? 0 : gen_i); tenure_i++) {
+			for (int shock_i = 0; shock_i < m_sp->numStates(); shock_i++) {
+				std::cout << gen_i << "," << tenure_i << "," << shock_i << ",";
+				std::cout << m_Y[tenure_i](gen_i, shock_i);
+				std::cout << "," << (m_Y[tenure_i](gen_i, shock_i) - D_b) << "," << wages[tenure_i](gen_i, shock_i);
+				std::cout << "," << (wages[tenure_i](gen_i, shock_i) - D_b) << ",";
+				std::cout << yChange.m_Y[tenure_i](gen_i, shock_i);
+				std::cout << "," << (yChange.m_Y[tenure_i](gen_i, shock_i) - D_b) << "," << yChange.wages[tenure_i](gen_i, shock_i);
+				std::cout << "," << (yChange.wages[tenure_i](gen_i, shock_i) - D_b) << ",";
+				double elast = (yChange.wages[tenure_i](gen_i, shock_i) - D_b) - (wages[tenure_i](gen_i, shock_i) - D_b);
+				elast /= (yChange.m_Y[tenure_i](gen_i, shock_i) - D_b) - (m_Y[tenure_i](gen_i, shock_i) - D_b);
+				elast *= ((m_Y[tenure_i](gen_i, shock_i) - D_b)/ (wages[tenure_i](gen_i, shock_i) - D_b));
+				std::cout << elast << std::endl;
+			}
+		}
+	}
+}
+#endif

@@ -9,6 +9,7 @@
 #include "nlopt.hpp"
 #include "SimAnnealForOLGModel.h"
 #include "OLGModel.h"
+#include <unsupported/Eigen/MatrixFunctions>
 
 /*
 #include "ceres/ceres.h"
@@ -28,7 +29,6 @@ void initialize(std::vector<double> &x, char *filename);
 
 int main(int argc, char *argv[])
 {
-
 	int numGens;
 	int numStates;
 	char which;
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 
 	if (which == 'e')
 	{
-		for (int i = 0; i < 100; i++) {
+		for (int i = 72; i < 73; i++) {
 			//solve for all wages
 			//create matching function targetting f=X and eta=Y
 			CobbDouglasMatching myF(fTarget, D_ETA);
@@ -78,8 +78,11 @@ int main(int argc, char *argv[])
 			OLGModel model(numGens, D_y, D_S, myF, p, i*.01, false);
 			model.solveWages();
 			//model.printWages();
+
 			//solve for elasticity
 			std::cout << i*0.01 << "," << model.elasticityWRTymb() << std::endl;
+
+			//model.printWageElasticity();
 #if 0
 			std::vector<double> elast = model.wageElasticityWRTymb();
 			for (int j = 0; j < elast.size(); j++) {

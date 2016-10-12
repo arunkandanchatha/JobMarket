@@ -1,7 +1,7 @@
 #include "OLGSolveAutoDiff.h"
 
-OLGSolveAutoDiff::OLGSolveAutoDiff(int gens, std::vector<double> ys, MatrixXd conditionalProbs, double parameter,
-	/*std::vector<double> bargaining,*/ double s, MatrixXd &wages)
+OLGSolveAutoDiff::OLGSolveAutoDiff(const int gens, std::vector<MatrixXd> ys, MatrixXd conditionalProbs, double parameter,
+	/*std::vector<double> bargaining,*/ double s, std::vector<MatrixXd> &wages)
 	:m_gens(gens),m_conditionalProbs(conditionalProbs), m_parameter(parameter), /*m_bargaining(bargaining),*/m_s(s),
 	m_wgs(&wages)
 {
@@ -27,6 +27,10 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& x, std::vector<double
 
 double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<double>& grad, std::vector<double>& bargaining) {
 
+	std::cout << "OLGSolveAutoDiff.solveProblem(): Not yet implemented. " << std::endl;
+	exit(-1);
+	return 0;
+#if 0
 	//setup input
 	int numStates = xx.size();
 	std::vector<adouble> m_thetas(numStates);
@@ -41,15 +45,18 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 		m_bargaining[i] = bargaining[i];
 	}
 
-	std::vector<std::vector<adouble>> W_vals;
-	std::vector<std::vector<adouble>> wages;
+	std::vector<std::vector<std::vector<adouble>>> W_vals;
+	std::vector<std::vector<std::vector<adouble>>> wages;
 	W_vals.resize(m_gens);
 	wages.resize(m_gens);
 	for (int i = 0; i < m_gens; i++) {
-		W_vals[i].resize(numStates);
-		wages[i].resize(numStates);
+		W_vals[i].resize(m_gens);
+		wages[i].resize(m_gens);
+		for (int j = 0; j < m_gens; j++) {
+			W_vals[i][j].resize(numStates);
+			wages[i][j].resize(numStates);
+		}
 	}
-
 	//now, solve for wages
 	{
 		std::vector<adouble> E_vals(numStates);
@@ -551,6 +558,7 @@ double OLGSolveAutoDiff::solveProblem(std::vector<double>& xx, std::vector<doubl
 		}
 	}
 	return value(retVal);
+#endif
 }
 
 void OLGSolveAutoDiff::setBargaining(std::vector<double>& b) {

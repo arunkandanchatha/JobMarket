@@ -1,15 +1,22 @@
 #pragma once
-#define D_y (1.0)
-#define D_b (0.4)
+#define D_y (1)
+#define D_b (.4)
 #define D_BETA (1.0 / 1.004)
-#define D_RHO (-1)
+#define D_RHO (1)
 #define D_C (0.21)
 #define D_S (0.034)
 #define D_ETA (0.28)
 #define MAX_SHOCKS_PER_MONTH (10)
 #define D_DEATH (0) 
-#define D_PROD_INCREASE (1.001)
-#define D_TENURE_INCREASE (1.001)
+#define D_PROD_INCREASE (1)
+#define D_TENURE_INCREASE (1)
+
+#if D_TENURE_INCREASE!=1
+#define DO_TENURE_SOLVE 1
+#endif
+
+#define D_SD_CONF_FOR_BIN_EST (3)
+#define WAGE_GRID_SIZE (200)
 
 #if 0
 #define D_MY_MU (15.14)
@@ -26,7 +33,6 @@
 #include "adept.h"
 using adept::adouble;
 
-//#define SIGN(a) (((a)<0)?-1:1)
 inline adouble SIGN(const adouble &a, const adouble &b) {
 	return (value(b) >= 0) ? (value(a) >= 0 ? a : (-a)) : (value(a) >= 0 ? (-a) : a);
 }
@@ -51,3 +57,68 @@ inline double ABS(const double &a)
 	return (a < 0) ? (-a) : a;
 }
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
+inline double D_HABIT_PERSISTANCE(const double original, const double updateVal) {
+	const double updateFactor = 0.001;
+	return original + updateFactor*(updateVal - original);
+}
+
+inline int nCr(int n, int r) {
+	if (r > n - r) {
+		r = n - r;
+	}
+	double ans = 1.0;
+	for (int j = 1; j <= r; ++j) {
+		ans = ans*n / j;
+		n--;
+	}
+	return (int)ans;
+}
+
+inline int TENURE_INCREASE_EE(int t) {
+#ifdef DO_TENURE_SOLVE
+	if (t < 0) {
+		std::cout << "Error! macros.h - TENURE_INCREASE_E: Must pass a positive tenure level. t=" << t << std::endl;
+		exit(-1);
+	}
+	return t + 1;
+#else
+	return 0;
+#endif
+}
+
+inline int TENURE_INCREASE_EU(int t) {
+#ifdef DO_TENURE_SOLVE
+	if (t < 0) {
+		std::cout << "Error! macros.h - TENURE_INCREASE_U: Must pass a positive tenure level. t=" << t << std::endl;
+		exit(-1);
+	}
+	return 0;
+#else
+	return 0;
+#endif
+}
+
+inline int TENURE_INCREASE_UE(int t) {
+#ifdef DO_TENURE_SOLVE
+	if (t < 0) {
+		std::cout << "Error! macros.h - TENURE_INCREASE_E: Must pass a positive tenure level. t=" << t << std::endl;
+		exit(-1);
+	}
+	return t;
+#else
+	return 0;
+#endif
+}
+
+inline int TENURE_INCREASE_UU(int t) {
+#ifdef DO_TENURE_SOLVE
+	if (t < 0) {
+		std::cout << "Error! macros.h - TENURE_INCREASE_U: Must pass a positive tenure level. t=" << t << std::endl;
+		exit(-1);
+	}
+	return 0;
+#else
+	return 0;
+#endif
+}
+

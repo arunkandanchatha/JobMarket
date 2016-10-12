@@ -6,14 +6,12 @@
 #include <vector>
 class OLGModel;
 
-typedef double (OLGModel::*OLGModelMemFn)(int state, int whichGen, int tenure, double x/*, VectorXd &Up1, VectorXd &Ep1, VectorXd &Wp1*/);
-//typedef double (OLGModel::*OLGModelMemFn)(int state, double x, VectorXd &Up1, VectorXd &Ep1, VectorXd &Wp1);
+typedef double (OLGModel::*OLGModelMemFn)(int generation, int state, int habit, int tenure, int wageLastPeriod, double x);
 
 class Generation : public FunctorBase
 {
 public:
-	Generation(OLGModel &p_model, OLGModelMemFn p_fn, int state, int whichGen, int p_tenure/*, VectorXd &p_Up1, VectorXd &p_Ep1, VectorXd &p_Wp1*/);
-//	Generation(OLGModel &p_model, OLGModelMemFn p_fn, int state, VectorXd &p_Up1, VectorXd &p_Ep1, VectorXd &p_Wp1);
+	Generation(OLGModel &p_model, OLGModelMemFn p_fn, int p_generation, int p_state, int p_habit, int p_tenure, int p_wageLastPeriod);
 	~Generation();
 
 	double operator()(double x);
@@ -26,6 +24,8 @@ private:
 	int m_state;
 	int m_whichGen;
 	int tenure;
+	int m_habit;
+	int m_wageLastPeriod;
 	OLGModel *m_model;
 	OLGModelMemFn m_fn;
 
