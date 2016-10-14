@@ -691,7 +691,12 @@ void OLGModel::printWages() {
 	std::cout.precision(15);
 	for (int i = 0; i < m_gens; i++) {
 		for (int j = 0; j < m_sp->numStates(); j++) {
-			for (int habitIndex = (m_gens-1)-i; habitIndex <= (m_gens-1+i); habitIndex+=2) {
+#if DO_HABIT_FORMATION
+			for (int habitIndex = (m_gens-1)-i; habitIndex <= (m_gens-1+i); habitIndex+=2)
+#else
+			int habitIndex = 0;
+#endif
+			{
 #ifdef DO_TENURE_SOLVE
 				for (int k = 0; k <= i; k++)
 #else

@@ -65,10 +65,6 @@ inline double ABS(const double &a)
 	return (a < 0) ? (-a) : a;
 }
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember))
-inline double D_HABIT_PERSISTANCE(const double original, const double updateVal) {
-	const double updateFactor = 0.001;
-	return original + updateFactor*(updateVal - original);
-}
 
 inline int nCr(int n, int r) {
 	if (r > n - r) {
