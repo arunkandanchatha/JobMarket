@@ -44,7 +44,7 @@ OLGModel::OLGModel(int generations, double y, double s, MatchingFunction &f, Sho
 
 #ifdef DO_HABIT_FORMATION
 	double probSuccess = 1 - D_S;
-	double habitIncrement = D_b / 4 / generations;
+	double habitIncrement = (0.5*D_b / 2) / generations;
 	for (int trialIndex = 0; trialIndex < generations; trialIndex++) {
 		for (int successIndex = 0; successIndex <= trialIndex; successIndex++) {
 			int numFailures = trialIndex - successIndex;
@@ -131,8 +131,12 @@ double OLGModel::adjustmentCost(const double original, const double updateVal) {
 void OLGModel::solveWages()
 {
 	m_wagesSolved = true;
-	for (int tenureIndex = 0; tenureIndex < m_Y.size(); tenureIndex++) {
-		for (int i = m_gens - 1; i >= 0; i--) {
+	for (int i = m_gens - 1; i >= 0; i--) {
+#ifdef DO_TENURE_SOLVE
+		for (int tenureIndex = 0; tenureIndex <= i; tenureIndex++) {
+#else
+		int tenureIndex = 0;{
+#endif
 #pragma omp parallel for num_threads(3)
 			for (int j = 0; j < m_sp->numStates(); j++) {
 #ifdef DO_HABIT_FORMATION

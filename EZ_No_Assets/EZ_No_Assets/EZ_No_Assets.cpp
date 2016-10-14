@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 			NoShocksProcess p;
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, D_y, D_S, myF, p, 0.5, false);
+			OLGModel model(numGens, D_y, D_S, myF, p, i*0.01, false);
 			model.solveWages();
 			//model.printWages();
 
