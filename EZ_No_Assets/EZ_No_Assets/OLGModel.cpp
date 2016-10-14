@@ -53,7 +53,7 @@ OLGModel::OLGModel(int generations, double y, double s, MatchingFunction &f, Sho
 		}
 	}
 #else
-	habits(0, 0) = D_b/2;
+	habits(0, 0) = 0;
 	habitProb(0, 0) = 1;
 #endif
 	int solveGenerations = 1;
@@ -251,7 +251,7 @@ double OLGModel::calcU(int generation, int state, int habit, int tenure, int wag
 	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
 		double nextProb = nextPDF(i, 0);
 		double calcF = m_f->calculatedF(m_thetas[state]);
-		double deathPart = D_DEATH*(U_vals[TENURE_INCREASE_UU(tenure)][nextHabit][0](m_gens - 1, i));
+		double deathPart = D_DEATH*U_vals[TENURE_INCREASE_UU(tenure)][nextHabit][0](m_gens - 1, i);
 		double nextVal = (1-D_DEATH)*(U_vals[TENURE_INCREASE_UU(tenure)][nextHabit][0](whichGen+1, i)
 			+ calcF*(E_vals[TENURE_INCREASE_UE(tenure)][nextHabit][0](whichGen+1,i)
 				- U_vals[TENURE_INCREASE_UU(tenure)][nextHabit][0](whichGen + 1, i)));
@@ -581,7 +581,8 @@ double OLGModel::elasticityWRTymb() {
 	Ey = 0;
 	double Eb = 0;
 	double dEy = 0;
-	double denom1 = (1 - pow(D_DEATH, m_gens)) / (1 - D_DEATH);
+	double myX = 1 - D_DEATH;
+	double denom1 = (D_DEATH==0)?(m_gens-1):((pow(myX,m_gens-1)-1)/(myX-1));
 	for (int i = 0; i < m_gens-1; i++) {
 		Ey += (pow(1 - D_DEATH, i) / denom1)*m_Y[0](i, expectedState);
 		dEy += (pow(1 - D_DEATH, i) / denom1)*
@@ -592,6 +593,7 @@ double OLGModel::elasticityWRTymb() {
 	double EW = expectedW0(expectedState, true);
 	double tEW = thetaChange.expectedW0(expectedState, true);
 	double yEW = yChange.expectedW0(expectedState, true);
+
 
 	double num = (Ey - Eb)*(yEW - EW) / (dEy);
 
@@ -606,6 +608,7 @@ double OLGModel::elasticityWRTymb() {
 		exit(-1);
 	}
 	delete thetaChange.m_f;
+
 	return num / denom;
 }
 
