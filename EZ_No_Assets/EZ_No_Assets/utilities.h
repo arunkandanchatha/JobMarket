@@ -9,5 +9,6 @@ public:
 	~utilities();
 
 	static double interpolate(const std::vector<double> &x, const std::vector<double> &y, double a_prime);
+	static int bracket(std::vector<double>xd, double xi);
 };
 

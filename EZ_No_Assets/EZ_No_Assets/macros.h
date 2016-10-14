@@ -9,14 +9,20 @@
 #define MAX_SHOCKS_PER_MONTH (10)
 #define D_DEATH (0) 
 #define D_PROD_INCREASE (1)
-#define D_TENURE_INCREASE (1)
 
-#if D_TENURE_INCREASE!=1
-#define DO_TENURE_SOLVE 1
+#define D_TENURE_INCREASE (1)
+#if 0
+#define DO_TENURE_SOLVE (1)
 #endif
 
-#define D_SD_CONF_FOR_BIN_EST (3)
-#define WAGE_GRID_SIZE (200)
+#define WAGE_GRID_SIZE (1)
+#if WAGE_GRID_SIZE>1
+#define DO_ADJUSTMENT_COSTS (1)
+#endif
+
+#if 0
+#define DO_HABIT_FORMATION (1)
+#endif
 
 #if 0
 #define D_MY_MU (15.14)
@@ -27,6 +33,8 @@
 #define D_MY_ALPHA (1)
 #define D_MY_PARAMETER (1.6)
 #endif
+
+#define D_SD_CONF_FOR_BIN_EST (3)
 
 #define SHFT3(a,b,c,d) ((a)=(b),(b)=(c),(c)=(d))
 #define SHFT2(a,b,c) ((a)=(b),(b)=(c))

@@ -31,6 +31,9 @@ protected:
 	double nonLinearWageEquation(int generation, int state, int habit, int tenure, int wageLastPeriod, double x);
 
 private:
+
+	bool m_wagesSolved;
+
 	VectorXd OLGModel::getSteadyStateDistrib(double jobFind);
 	double calcU(int generation, int state, int habit, int tenure, int wageLastPeriod);
 	double calcE(int generation, int state, int habit, int tenure, int wageLastPeriod, double x);
