@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 
 	if (which == 'e')
 	{
-		for (int i = 72; i < 73; i++) {
+		for (int i = 18; i < 19; i++) {
 			//solve for all wages
 			//create matching function targetting f=X and eta=Y
 			CobbDouglasMatching myF(fTarget, D_ETA);

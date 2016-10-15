@@ -87,10 +87,14 @@ OLGModel::OLGModel(int generations, double y, double s, MatchingFunction &f, Sho
 			}
 #ifdef DO_ADJUSTMENT_COSTS
 			for (int i = 0; i < WAGE_GRID_SIZE; i++) {
-				oldWages[genIndex2][i] = ((double)i) / (WAGE_GRID_SIZE - 1)*(m_Y[genIndex](genIndex2, sp.numStates() - 1) - D_b);
+#ifdef DO_TENURE_SOLVE
+				oldWages[genIndex2][i] = ((double)i) / (WAGE_GRID_SIZE - 1)*(m_Y[MAX(0,genIndex-1)](MAX(0,genIndex2-1), sp.numStates() - 1) - D_b);
+#else
+				oldWages[genIndex2][i] = ((double)i) / (WAGE_GRID_SIZE - 1)*(m_Y[genIndex](MAX(0, genIndex2 - 1), sp.numStates() - 1) - D_b);
+#endif
 			}
 #else
-			oldWages[genIndex2][0] = D_b;
+			oldWages[genIndex2][0] = 0;
 #endif
 		}
 	}
@@ -118,11 +122,11 @@ OLGModel::~OLGModel()
 }
 
 double OLGModel::adjustmentCost(const double original, const double updateVal) {
-	if (original == D_b) {
+	if (original == 0) {
 		return 0;
 	}
 #ifdef DO_ADJUSTMENT_COSTS
-	return 0;// ABS(updateVal - original);
+	return MIN(0.1,pow(1+ABS(updateVal - original),10)-1);
 #else
 	return 0;
 #endif
@@ -131,21 +135,23 @@ double OLGModel::adjustmentCost(const double original, const double updateVal) {
 void OLGModel::solveWages()
 {
 	m_wagesSolved = true;
+//	std::cout << std::endl<<"OLGModel.cpp-solveWages()" << std::endl;
 	for (int i = m_gens - 1; i >= 0; i--) {
+//		std::cout << i << "," << std::flush;
 #ifdef DO_TENURE_SOLVE
 		for (int tenureIndex = 0; tenureIndex <= i; tenureIndex++) {
 #else
 		int tenureIndex = 0;{
 #endif
-#pragma omp parallel for num_threads(3)
 			for (int j = 0; j < m_sp->numStates(); j++) {
+#pragma omp parallel for num_threads(3)
+				for (int wageIndex = 0; wageIndex < WAGE_GRID_SIZE; wageIndex++) {
 #ifdef DO_HABIT_FORMATION
-				for (int habitIndex = m_gens-1-i; habitIndex <= m_gens-1+i; (i==(m_gens-1))?(habitIndex++):(habitIndex+=2))
+					for (int habitIndex = m_gens-1-i; habitIndex <= m_gens-1+i; (i==(m_gens-1))?(habitIndex++):(habitIndex+=2))
 #else
-				int habitIndex = 0;
-#endif
-				{
-					for (int wageIndex = 0; wageIndex < WAGE_GRID_SIZE; wageIndex++) {
+					int habitIndex = 0;
+#endif	
+					{
 						if (i == m_gens - 1) {
 							E_vals[tenureIndex][habitIndex][wageIndex](i, j) = pow(1 - D_BETA, 1.0 / D_RHO)*(D_b - habits(i,habitIndex));
 							U_vals[tenureIndex][habitIndex][wageIndex](i, j) = pow(1 - D_BETA, 1.0 / D_RHO)*(D_b - habits(i, habitIndex));
@@ -192,8 +198,6 @@ void OLGModel::solveWages()
 							double del = x[0];
 							double newWages = D_b + del;
 
-							//std::cout << i << ":" << j << ":" << habitIndex << ":" << wageIndex << ":" << newWages << std::endl;
-
 							if (m_Y[tenureIndex](i, j) - newWages < 0) {
 								std::cout << "OLGModel-solveWages(): cohort " << i << " shock " << j << " tenure " << tenureIndex << " has y-w<0. HOW?" << std::endl;
 								std::cout << "y: " << m_Y[tenureIndex](i, j) << "   w: " << newWages << "   y-w(T+1): " << m_Y[tenureIndex](i, j) - newWages << std::endl;
@@ -208,10 +212,12 @@ void OLGModel::solveWages()
 								exit(-1);
 							}
 
-							wages[tenureIndex][habitIndex][wageIndex](i, j) = newWages;
+
+							double t_w = calcW(i, j, habitIndex, tenureIndex, wageIndex, del);
+							W_vals[tenureIndex][habitIndex][wageIndex](i, j) = t_w;
 							U_vals[tenureIndex][habitIndex][wageIndex](i, j) = calcU(i, j, habitIndex, tenureIndex, wageIndex);
 							E_vals[tenureIndex][habitIndex][wageIndex](i, j) = calcE(i, j, habitIndex, tenureIndex, wageIndex, del);
-							W_vals[tenureIndex][habitIndex][wageIndex](i, j) = calcW(i, j, habitIndex, tenureIndex, wageIndex, del);
+							wages[tenureIndex][habitIndex][wageIndex](i, j) = newWages;
 						}
 					}
 				}
@@ -373,7 +379,7 @@ double OLGModel::calcW(int generation, int state, int habit, int tenure, int wag
 	//double wageThisPeriod = D_b + delta;
 	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
 		//interpolate W values using wageNow
-		double nextW = utilities::interpolate(oldWages[whichGen], wVec[zIndex],	delta);
+		double nextW = utilities::interpolate(oldWages[whichGen+1], wVec[zIndex],	delta);
 		zIndex++;
 		total += nextPDF(i, 0)*(1 - m_Es - D_DEATH)*nextW;
 	}
@@ -399,7 +405,7 @@ double OLGModel::nonLinearWageEquation(int generation, int state, int habit, int
 			<< " habit=" << habit << std::endl;
 		exit(-1);
 	}
-#else DO_HABIT_FORMATION
+#else
 	if (habit != 0) {
 		std::cout << "Error! OLGModel.cpp-nonLinearWageEquation(): Not solving for habit formation. Should not get habit input != 0. habitInput="
 			<< habit << std::endl;
@@ -598,7 +604,14 @@ double OLGModel::elasticityWRTymb() {
 	double tEW = thetaChange.expectedW0(expectedState, true);
 	double yEW = yChange.expectedW0(expectedState, true);
 
-
+	printWages();
+	std::cout << "===============" << std::endl;
+	thetaChange.printWages();
+	std::cout << "===============" << std::endl;
+	yChange.printWages();
+	std::cout << "===============" << std::endl;
+	std::cout << EW << "," << tEW << "," << yEW << std::endl;
+	std::cout << yEW - EW << std::endl;
 	double num = (Ey - Eb)*(yEW - EW) / (dEy);
 
 	double denom = (1 - m_f->getElasticity(m_thetas(expectedState)))*EW - m_f->getTheta()*
@@ -710,9 +723,10 @@ void OLGModel::printWages() {
 				for (int k = 0; k < 1; k++)
 #endif
 				{
-					for (int wageIndex = 0; wageIndex < WAGE_GRID_SIZE; wageIndex++) {
-						std::cout << "Cohort_" << i << " (" << j << "," << habitIndex << ","
-							<< k << "," << wageIndex <<"): y=" << m_Y[k](i, j) << " b=" << D_b
+//					for (int wageIndex = 0; wageIndex < WAGE_GRID_SIZE; wageIndex++) {
+					for (int wageIndex = 0; wageIndex < 1; wageIndex++) {
+					std::cout << "Cohort_" << i << " (" << j << "," << habitIndex << ","
+							<< k << "," << wageIndex <<"="<<oldWages[i][wageIndex]+D_b<<"): y=" << m_Y[k](i, j) << " b=" << D_b
 							<< " w=" << wages[k][habitIndex][wageIndex](i, j) << std::endl;
 					}
 				}
@@ -840,31 +854,3 @@ void OLGModel::printStatus(const std::vector<double>& solution, int numCalls, do
 	return;
 }
 
-#if 0
-void OLGModel::printWageElasticity() {
-	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
-	double Ey = m_Y[0](0, expectedState);
-	OLGModel yChange(m_gens, 1.0001*(Ey-D_b)+D_b, m_Es, *m_f, *m_sp, m_bargaining, false);
-
-	yChange.solveWages();
-
-	std::cout << "generation,tenure,z,y,y-b,w,w-b,y',y'-b,w',w'-b,elast" << std::endl;
-	for (int gen_i = 0; gen_i < m_gens-1; gen_i++) {
-		for (int tenure_i = 0; tenure_i <= ((D_TENURE_INCREASE == 1) ? 0 : gen_i); tenure_i++) {
-			for (int shock_i = 0; shock_i < m_sp->numStates(); shock_i++) {
-				std::cout << gen_i << "," << tenure_i << "," << shock_i << ",";
-				std::cout << m_Y[tenure_i](gen_i, shock_i);
-				std::cout << "," << (m_Y[tenure_i](gen_i, shock_i) - D_b) << "," << wages[tenure_i](gen_i, shock_i);
-				std::cout << "," << (wages[tenure_i](gen_i, shock_i) - D_b) << ",";
-				std::cout << yChange.m_Y[tenure_i](gen_i, shock_i);
-				std::cout << "," << (yChange.m_Y[tenure_i](gen_i, shock_i) - D_b) << "," << yChange.wages[tenure_i](gen_i, shock_i);
-				std::cout << "," << (yChange.wages[tenure_i](gen_i, shock_i) - D_b) << ",";
-				double elast = (yChange.wages[tenure_i](gen_i, shock_i) - D_b) - (wages[tenure_i](gen_i, shock_i) - D_b);
-				elast /= (yChange.m_Y[tenure_i](gen_i, shock_i) - D_b) - (m_Y[tenure_i](gen_i, shock_i) - D_b);
-				elast *= ((m_Y[tenure_i](gen_i, shock_i) - D_b)/ (wages[tenure_i](gen_i, shock_i) - D_b));
-				std::cout << elast << std::endl;
-			}
-		}
-	}
-}
-#endif

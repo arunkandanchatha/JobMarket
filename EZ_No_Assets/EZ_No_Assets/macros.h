@@ -2,20 +2,20 @@
 #define D_y (1)
 #define D_b (.4)
 #define D_BETA (1.0 / 1.004)
-#define D_RHO (1)
+#define D_RHO (-1)
 #define D_C (0.21)
 #define D_S (0.034)
 #define D_ETA (0.28)
 #define MAX_SHOCKS_PER_MONTH (10)
 #define D_DEATH (0) 
-#define D_PROD_INCREASE (1)
+#define D_PROD_INCREASE (1.001)
 
 #define D_TENURE_INCREASE (1)
 #if 0
 #define DO_TENURE_SOLVE (1)
 #endif
 
-#define WAGE_GRID_SIZE (1)
+#define WAGE_GRID_SIZE (2000)
 #if WAGE_GRID_SIZE>1
 #define DO_ADJUSTMENT_COSTS (1)
 #endif
