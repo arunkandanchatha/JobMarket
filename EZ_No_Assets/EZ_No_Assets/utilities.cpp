@@ -105,6 +105,10 @@ double utilities::interpolate(const std::vector<double> &x, const std::vector<do
 
 	int left = bracket(x, x_prime);
 
+	if (x[left] > x_prime && left != 0) {
+		std::cout << "Error! utilities.cpp-interpolate() had wrong bracket." << std::endl;
+		exit(-1);
+	}
 	t = (x_prime - x[left]) / (x[left + 1] - x[left]);
 	yi = (1.0 - t) * y[left] + t * y[left + 1];
 

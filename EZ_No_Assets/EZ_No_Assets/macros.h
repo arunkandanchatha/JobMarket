@@ -1,24 +1,33 @@
 #pragma once
-#define D_y (1)
-#define D_b (.4)
+#define D_SCALE (1e10)
+#define D_y (1*D_SCALE)
+
+class myDBClass {
+public:
+	static double myDB;
+};
+
+#define D_b (myDBClass::myDB*D_SCALE)
+
 #define D_BETA (1.0 / 1.004)
-#define D_RHO (-1)
-#define D_C (0.21)
-#define D_S (0.034)
+#define D_RHO (-4)
+#define D_FIRM_RHO (1)
+#define D_C (0*D_SCALE)
+#define D_S(x,y) (0.034)
 #define D_ETA (0.28)
 #define MAX_SHOCKS_PER_MONTH (10)
 #define D_DEATH (0) 
 #define D_PROD_INCREASE (1.001)
-
 #define D_TENURE_INCREASE (1)
 #if 0
 #define DO_TENURE_SOLVE (1)
 #endif
 
-#define WAGE_GRID_SIZE (2000)
+#define WAGE_GRID_SIZE (50)
 #if WAGE_GRID_SIZE>1
 #define DO_ADJUSTMENT_COSTS (1)
 #endif
+#define D_MAX_ADJ_COST (0.25*D_SCALE)
 
 #if 0
 #define DO_HABIT_FORMATION (1)

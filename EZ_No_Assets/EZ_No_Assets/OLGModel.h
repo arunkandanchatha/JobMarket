@@ -18,6 +18,7 @@ public:
 	~OLGModel();
 	void solveWages();
 	double elasticityWRTymb();
+	double elasticityWRTy();
 	double elasticityWRTs();
 	std::vector<double> wageElasticityWRTymb();
 	void printWages();
@@ -25,16 +26,35 @@ public:
 	double operator()(const std::vector<double> &x, std::vector<double> &grad);
 	static double wrap(const std::vector<double> &x, std::vector<double> &grad, void *data);
 	OLGSolveAutoDiff getSolver();
-//	void printWageElasticity();
 
 protected:
 	double nonLinearWageEquation(int generation, int state, int habit, int tenure, int wageLastPeriod, double x);
 
 private:
 
+	double genWeightOfUnemployment(int gen, int maxGen) {
+		return 1.0 / maxGen;
+		double total = (maxGen * (maxGen + 1)) / 2;
+		return (maxGen-gen)/(total);
+	}
+
+	double probJobLoss(int gen, int maxGen, double AGG_JOB_LOSS_PROB) {
+		return AGG_JOB_LOSS_PROB;
+		double total = (maxGen * (maxGen + 1)) / 2;
+		double retVal = maxGen * AGG_JOB_LOSS_PROB / total * (maxGen - gen);
+		if (retVal > 1) {
+			std::cout << "ERROR! OLGModel.h-probJobLoss(): returning value > 1. How? retVal=" << retVal << std::endl;
+			exit(-1);
+		}
+		if (retVal < 0) {
+			std::cout << "ERROR! OLGModel.h-probJobLoss(): returning value < 0. How? retVal=" << retVal << std::endl;
+			exit(-1);
+		}
+		return retVal;
+	}
+
 	bool m_wagesSolved;
 
-	VectorXd OLGModel::getSteadyStateDistrib(double jobFind);
 	double calcU(int generation, int state, int habit, int tenure, int wageLastPeriod);
 	double calcE(int generation, int state, int habit, int tenure, int wageLastPeriod, double x);
 	double calcW(int generation, int state, int habit, int tenure, int wageLastPeriod, double x);

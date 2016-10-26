@@ -122,11 +122,8 @@ OLGModel::~OLGModel()
 }
 
 double OLGModel::adjustmentCost(const double original, const double updateVal) {
-	if (original == 0) {
-		return 0;
-	}
 #ifdef DO_ADJUSTMENT_COSTS
-	return MIN(0.1,pow(1+ABS(updateVal - original),10)-1);
+	return MIN(D_MAX_ADJ_COST,D_SCALE*pow(1+100000*ABS(updateVal - original),10)-1);
 #else
 	return 0;
 #endif
@@ -163,40 +160,81 @@ void OLGModel::solveWages()
 
 							Generation toSolve(*this, &OLGModel::nonLinearWageEquation, i, j, habitIndex, tenureIndex, wageIndex);
 							nlopt::opt opt(nlopt::LN_BOBYQA, 1);
+							nlopt::opt opt2(nlopt::LN_NELDERMEAD, 1);
+
+							
 							double lwbnd = 0;
 							double upbnd = prodInState - D_b;
 
 							opt.set_lower_bounds(lwbnd);
 							opt.set_upper_bounds(upbnd);
 							opt.set_min_objective(Generation::wrap, &toSolve);
+							opt.set_xtol_rel(1e-12);
 
-							opt.set_xtol_rel(1e-10);
+							opt2.set_lower_bounds(lwbnd);
+							opt2.set_upper_bounds(upbnd);
+							opt2.set_min_objective(Generation::wrap, &toSolve);
+							opt2.set_xtol_rel(1e-12);
 
 							std::vector<double> x(1);
 							x[0] = (lwbnd + upbnd) / 2;
 
 							double minf;
 							nlopt::result result;
-							try {
-								result = opt.optimize(x, minf);
-							}
-							catch (const nlopt::roundoff_limited& e) {
-								std::cout << e.what() << std::endl;
-							}
-							catch (const nlopt::forced_stop& e) {
-								std::cout << e.what() << std::endl;
-								exit(-1);
-							}
-							catch (const std::runtime_error& e) {
-								std::cout << e.what() << std::endl;
-								exit(-1);
-							}
-							catch (const std::exception &e) {
-								std::cout << e.what() << std::endl;
-								exit(-1);
+							for (int doubleStart = 0; doubleStart < 2; doubleStart++) {
+								try {
+									if (doubleStart == 0)
+										result = opt.optimize(x, minf);
+									else
+										result = opt2.optimize(x, minf);
+								}
+								catch (const nlopt::roundoff_limited& e) {
+									//std::cout << e.what() << std::endl;
+								}
+								catch (const nlopt::forced_stop& e) {
+									std::cout << e.what() << std::endl;
+									exit(-1);
+								}
+								catch (const std::runtime_error& e) {
+									std::cout << e.what() << std::endl;
+									exit(-1);
+								}
+								catch (const std::exception &e) {
+									std::cout << e.what() << std::endl;
+									exit(-1);
+								}
 							}
 							double del = x[0];
 							double newWages = D_b + del;
+
+							double t_w = calcW(i, j, habitIndex, tenureIndex, wageIndex, del);
+
+							if (t_w < 0) {
+								std::cout << "ERROR! OLGModel.cpp-solveWages(): Should not get W<0. W=" << t_w << std::endl;
+								std::cout << "cohort " << i << " shock " << j << " tenure " << tenureIndex <<
+									"  wageIndex " << wageIndex << std::endl;
+								std::cout << "y: " << m_Y[tenureIndex](i, j) << "   w: " << newWages << std::endl;
+								std::cout << "oldWage: " << D_b + oldWages[i][wageIndex] << std::endl;
+								double val1 = calcW(i, j, habitIndex, tenureIndex, wageIndex, oldWages[i][wageIndex]);
+								std::cout << "value at w: " << t_w << std::endl;
+								std::cout << "value at oldWage: " << val1 << std::endl;
+								exit(-1);
+							}
+
+#ifdef DO_ADJUSTMENT_COSTS
+							double oldWage = oldWages[i][wageIndex];
+							double noWageChangeW = calcW(i, j, habitIndex, tenureIndex, wageIndex, oldWage);
+
+							if ((t_w < noWageChangeW) && (del < oldWage)) {
+								del = oldWage;
+								newWages = D_b + oldWage;
+								t_w = noWageChangeW;
+
+								if (t_w < 0) {
+									int iiii = 0;
+								}
+							}
+#endif
 
 							if (m_Y[tenureIndex](i, j) - newWages < 0) {
 								std::cout << "OLGModel-solveWages(): cohort " << i << " shock " << j << " tenure " << tenureIndex << " has y-w<0. HOW?" << std::endl;
@@ -212,12 +250,13 @@ void OLGModel::solveWages()
 								exit(-1);
 							}
 
-
-							double t_w = calcW(i, j, habitIndex, tenureIndex, wageIndex, del);
 							W_vals[tenureIndex][habitIndex][wageIndex](i, j) = t_w;
 							U_vals[tenureIndex][habitIndex][wageIndex](i, j) = calcU(i, j, habitIndex, tenureIndex, wageIndex);
 							E_vals[tenureIndex][habitIndex][wageIndex](i, j) = calcE(i, j, habitIndex, tenureIndex, wageIndex, del);
 							wages[tenureIndex][habitIndex][wageIndex](i, j) = newWages;
+
+//							std::cout << "OLGModel.cpp-solveWages(): w=" << newWages << std::endl;
+//							exit(-1);
 						}
 					}
 				}
@@ -324,7 +363,7 @@ double OLGModel::calcE(int generation, int state, int habit, int tenure, int wag
 		double nextE = utilities::interpolate(oldWages[whichGen], eVec[zIndex], delta);
 		zIndex++;
 		double nextU = U_vals[TENURE_INCREASE_EU(tenure)][nextHabit][0](whichGen + 1, i);
-		double nextVal = (1 - D_DEATH)*(nextE - m_Es*(nextE - nextU));
+		double nextVal = (1 - D_DEATH)*(nextE - probJobLoss(whichGen+1,m_gens,m_Es)*(nextE - nextU));
 		total += nextPDF(i, 0)*pow(deathPart+nextVal, D_RHO);
 	}
 	total *= D_BETA;
@@ -380,11 +419,23 @@ double OLGModel::calcW(int generation, int state, int habit, int tenure, int wag
 	for (int i = MAX(0, state - MAX_SHOCKS_PER_MONTH); i < maxIters; i++) {
 		//interpolate W values using wageNow
 		double nextW = utilities::interpolate(oldWages[whichGen+1], wVec[zIndex],	delta);
+		if (nextW < 0) {
+			std::cout << "ERROR! OLGModel.cpp-calcW(): Should not get W<0. nextW=" << nextW << std::endl;
+			exit(-1);
+		}
 		zIndex++;
-		total += nextPDF(i, 0)*(1 - m_Es - D_DEATH)*nextW;
+		total += nextPDF(i, 0)*(1 - probJobLoss(whichGen + 1, m_gens, m_Es) - D_DEATH)*nextW;
+		if (total < 0) {
+			std::cout << "ERROR! OLGModel.cpp-calcW(): Should not get W<0. total=" << total << std::endl;
+			exit(-1);
+		}
 	}
-	double retVal = m_Y[tenure](whichGen, state) - D_b - delta 
-		- adjustmentCost(oldWages[whichGen][wageLastPeriod],delta) + D_BETA*total;
+	double retVal = m_Y[tenure](whichGen, state) - D_b - delta - adjustmentCost(oldWages[whichGen][wageLastPeriod], delta) + D_BETA*total;
+
+//	if (retVal < 0) {
+//		std::cout << "ERROR! OLGModel.cpp-calcW(): Should not get W<0. W=" << retVal << std::endl;
+//		exit(-1);
+//	}
 	return retVal;
 }
 
@@ -417,14 +468,20 @@ double OLGModel::nonLinearWageEquation(int generation, int state, int habit, int
 	double t_calcE = calcE(generation, state, habit, tenure, wageLastPeriod, x);
 	double t_calcU = calcU(generation, state, habit, tenure, wageLastPeriod);
 	double t_calcW = calcW(generation, state, habit, tenure, wageLastPeriod, x);
+	double penalty = 0;
+	if (t_calcW < 0) {
+		penalty = pow(1 + ABS(t_calcW), 10) - 1;
+		t_calcW = 0;
+	}
 	double t_partialE_partialDel = partialE_partialDel(generation, state, habit, tenure, wageLastPeriod, x);
 
 	if (m_bargaining == 1) {
-		return -(t_calcE - t_calcU);
+		return ABS(t_calcE - t_calcU + penalty);
 	}
 	double retVal = ABS(
-		t_calcE - t_calcU - m_bargaining / (1 - m_bargaining)*t_calcW*t_partialE_partialDel
+		t_calcE - t_calcU - m_bargaining / (1 - m_bargaining)*t_calcW*t_partialE_partialDel + penalty
 		);
+
 
 	if (retVal < 0) {
 		std::cout << "OLGModel.cpp-nonLinearWageEquation(): return value < 0. How is this possible?" << std::endl;
@@ -487,7 +544,7 @@ double OLGModel::partialE_partialDel(int generation, int state, int habit, int t
 		double nextU = U_vals[TENURE_INCREASE_EU(tenure)][nextHabit][0](whichGen + 1, i);
 
 		double deathPart = D_DEATH*U_vals[TENURE_INCREASE_UU(tenure)][nextHabit][0](m_gens - 1, i);
-		double nextVal = (1 - D_DEATH)*(nextE - m_Es*(nextE - nextU));
+		double nextVal = (1 - D_DEATH)*(nextE - probJobLoss(whichGen + 1, m_gens, m_Es)*(nextE - nextU));
 		total += nextPDF(i, 0)*pow(deathPart+nextVal,D_RHO);
 	}
 	total *= D_BETA;
@@ -495,48 +552,6 @@ double OLGModel::partialE_partialDel(int generation, int state, int habit, int t
 	double insideBracket = (1 - D_BETA)*pow(D_b + delta - habits(generation, habit), D_RHO) + total;
 	double dE_dDel = pow(insideBracket, 1.0 / D_RHO - 1)*(1 - D_BETA)*pow(D_b + delta - habits(generation, habit), D_RHO - 1);
 	return dE_dDel;
-}
-
-VectorXd OLGModel::getSteadyStateDistrib(double jobFind) {
-	if (jobFind > 1) {
-		std::cout << "OLGModel.cpp-getSteadStateDistrib() - probability of finding a job must be <= 1" << std::endl;
-		exit(-1);
-	}
-	if (jobFind < 0) {
-		std::cout << "OLGModel.cpp-getSteadStateDistrib() - probability of finding a job must be >= 0" << std::endl;
-		exit(-1);
-	}
-	MatrixXd trans(m_gens, m_gens);
-	VectorXd startDistrib(m_gens);
-	for (int i = 0; i < m_gens; i++) {
-		for (int j = 0; j < m_gens; j++) {
-			trans(i, j) = 0;
-		}
-		if (i == 0) {
-			trans(i, i) = 1-jobFind;
-			trans(i, i + 1) = jobFind;
-		}
-		else if (i == (m_gens - 1)) {
-			trans(i, 0) = (1-jobFind)*D_S;
-			trans(i, 1) = jobFind*D_S;
-			trans(i, i) = 1 - D_S;
-		}
-		else {
-			trans(i, 0) = (1 - jobFind)*D_S;
-			trans(i, 1) = jobFind*D_S;
-			trans(i, i + 1) = 1 - D_S;
-		}
-		startDistrib(i) = 0;
-	}
-	startDistrib(0) = 1;
-	MatrixXd transT = trans.transpose();
-
-	VectorXd mystat(m_gens);
-	mystat = transT*startDistrib;
-	for (int i = 0; i < 1000 * m_gens; i++) {
-		mystat = transT*mystat;
-	}
-	return mystat;
 }
 
 double OLGModel::expectedW0(int state, bool forceNoShocks) {
@@ -555,7 +570,7 @@ double OLGModel::expectedW0(int state, bool forceNoShocks) {
 #endif
 			{
 				double wval = W_vals[0][habitIndex][0](i, state);
-				double myChange = (pow(1 - D_DEATH, i) / denom)*habitProb(i, habitIndex)*wval;
+				double myChange = (pow(1 - D_DEATH, i) / denom)*habitProb(i, habitIndex)*genWeightOfUnemployment(i,m_gens)*wval;
 				total = total + myChange;
 			}
 		}
@@ -582,11 +597,65 @@ double OLGModel::expectedW0(int state, bool forceNoShocks) {
 	return total;
 }
 
+double OLGModel::elasticityWRTy() {
+	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
+	double Ey = m_Y[0](0, expectedState);
+	OLGModel thetaChange(m_gens, Ey, m_Es, *(m_f->dTheta()), *m_sp, m_bargaining, false);
+	OLGModel yChange(m_gens, 1.001*Ey, m_Es, *m_f, *m_sp, m_bargaining, false);
+
+	Ey = 0;
+	double Eb = 0;
+	double dEy = 0;
+	double myX = 1 - D_DEATH;
+	double denom1 = (D_DEATH == 0) ? (m_gens - 1) : ((pow(myX, m_gens - 1) - 1) / (myX - 1));
+	for (int i = 0; i < m_gens - 1; i++) {
+		Ey += (pow(1 - D_DEATH, i) / denom1)*m_Y[0](i, expectedState);
+		dEy += (pow(1 - D_DEATH, i) / denom1)*
+			(yChange.m_Y[0](i, expectedState) - m_Y[0](i, expectedState));
+	}
+	Eb = D_b;
+
+	double EW = expectedW0(expectedState, true);
+	double tEW = thetaChange.expectedW0(expectedState, true);
+	double yEW = yChange.expectedW0(expectedState, true);
+
+	if ((EW + tEW + yEW) == 0) {
+		return 0;
+	}
+
+	double num = Ey*(yEW - EW) / (dEy);
+
+	double denom = (1 - m_f->getElasticity(m_thetas(expectedState)))*EW - m_f->getTheta()*
+		(tEW - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
+
+//		printWages();
+//		std::cout << "===============" << std::endl;
+//		thetaChange.printWages();
+//		std::cout << "===============" << std::endl;
+//		yChange.printWages();
+//		std::cout << "===============" << std::endl;
+//		std::cout << EW << "," << tEW << "," << yEW << std::endl;
+//		std::cout << (Ey-Eb) << ":" << yEW - EW << std::endl;
+//		std::cout << denom << std::endl;
+
+	if (denom == 0) {
+		std::cout << "OLGModel-elasticityWRTy() - denominator = 0. Should not be possible." << std::endl;
+		std::cout << "EW=" << EW << std::endl;
+		std::cout << "tEW=" << tEW << std::endl;
+		std::cout << "yEW=" << yEW << std::endl;
+		exit(-1);
+	}
+	delete thetaChange.m_f;
+
+	return num / denom;
+}
+
 double OLGModel::elasticityWRTymb() {
 	unsigned int expectedState = (m_sp->numStates() - 1) / 2;
 	double Ey = m_Y[0](0, expectedState);
 	OLGModel thetaChange(m_gens, Ey, m_Es, *(m_f->dTheta()), *m_sp, m_bargaining, false);
-	OLGModel yChange(m_gens, 1.0001*Ey, m_Es, *m_f, *m_sp, m_bargaining, false);
+	double newY = Ey + 1.001*(Ey - D_b);
+	OLGModel yChange(m_gens, newY, m_Es, *m_f, *m_sp, m_bargaining, false);
 
 	Ey = 0;
 	double Eb = 0;
@@ -604,18 +673,24 @@ double OLGModel::elasticityWRTymb() {
 	double tEW = thetaChange.expectedW0(expectedState, true);
 	double yEW = yChange.expectedW0(expectedState, true);
 
-	printWages();
-	std::cout << "===============" << std::endl;
-	thetaChange.printWages();
-	std::cout << "===============" << std::endl;
-	yChange.printWages();
-	std::cout << "===============" << std::endl;
-	std::cout << EW << "," << tEW << "," << yEW << std::endl;
-	std::cout << yEW - EW << std::endl;
+	if ((EW + tEW + yEW) == 0) {
+		return 0;
+	}
+
 	double num = (Ey - Eb)*(yEW - EW) / (dEy);
 
 	double denom = (1 - m_f->getElasticity(m_thetas(expectedState)))*EW - m_f->getTheta()*
 		(tEW - EW) / (thetaChange.m_f->getTheta() - m_f->getTheta());
+
+//	printWages();
+//	std::cout << "===============" << std::endl;
+//	thetaChange.printWages();
+//	std::cout << "===============" << std::endl;
+//	yChange.printWages();
+//	std::cout << "===============" << std::endl;
+//	std::cout << EW << "," << tEW << "," << yEW << std::endl;
+//	std::cout << (Ey-Eb) << ":" << yEW - EW << std::endl;
+//	std::cout << denom << std::endl;
 
 	if (denom == 0) {
 		std::cout << "OLGModel-elasticityWRTymb() - denominator = 0. Should not be possible." << std::endl;
@@ -709,7 +784,7 @@ double OLGModel::elasticityWRTs() {
 
 void OLGModel::printWages() {
 	std::cout.precision(15);
-	for (int i = 0; i < m_gens; i++) {
+	for (int i = 0; i < m_gens-1; i++) {
 		for (int j = 0; j < m_sp->numStates(); j++) {
 #if DO_HABIT_FORMATION
 			for (int habitIndex = (m_gens-1)-i; habitIndex <= (m_gens-1+i); habitIndex+=2)
@@ -723,11 +798,12 @@ void OLGModel::printWages() {
 				for (int k = 0; k < 1; k++)
 #endif
 				{
-//					for (int wageIndex = 0; wageIndex < WAGE_GRID_SIZE; wageIndex++) {
-					for (int wageIndex = 0; wageIndex < 1; wageIndex++) {
+					for (int wageIndex = 0; wageIndex < WAGE_GRID_SIZE; wageIndex++) {
+//					for (int wageIndex = 0; wageIndex < 1; wageIndex++) {
 					std::cout << "Cohort_" << i << " (" << j << "," << habitIndex << ","
 							<< k << "," << wageIndex <<"="<<oldWages[i][wageIndex]+D_b<<"): y=" << m_Y[k](i, j) << " b=" << D_b
-							<< " w=" << wages[k][habitIndex][wageIndex](i, j) << std::endl;
+							<< " w=" << wages[k][habitIndex][wageIndex](i, j) << "  W=" << 
+							W_vals[k][habitIndex][wageIndex](i,j)<< std::endl;
 					}
 				}
 			}

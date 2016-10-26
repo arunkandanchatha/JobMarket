@@ -26,6 +26,7 @@ using ceres::Solve;
 
 double myConstraint(const std::vector<double> &x, std::vector<double> &grad, void*data);
 void initialize(std::vector<double> &x, char *filename);
+double myDBClass::myDB = 0.4;
 
 int main(int argc, char *argv[])
 {
@@ -66,7 +67,17 @@ int main(int argc, char *argv[])
 
 	if (which == 'e')
 	{
-		for (int i = 18; i < 19; i++) {
+#if 1
+		for (int i = 70; i < 71; i++) {
+			for (int j = 0; j < 100; j++) {
+
+				myDBClass::myDB = i*.01;
+//				myDBClass::myDB = .75;
+#else
+		for (int i = 0; i < 1; i++) {
+
+			myDBClass::myDB = 0.95;
+#endif
 			//solve for all wages
 			//create matching function targetting f=X and eta=Y
 			CobbDouglasMatching myF(fTarget, D_ETA);
@@ -75,12 +86,13 @@ int main(int argc, char *argv[])
 			NoShocksProcess p;
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, D_y, D_S, myF, p, i*0.01, false);
+			OLGModel model(numGens, D_y, D_S(0,0), myF, p, j*0.01, false);
 			model.solveWages();
 			//model.printWages();
 
 			//solve for elasticity
-			std::cout << i*0.01 << "," << model.elasticityWRTymb() << std::endl;
+//			std::cout << i*0.01 << "," << model.elasticityWRTymb() << std::endl;
+			std::cout << j*0.01 << "," << D_b/D_SCALE << "," << model.elasticityWRTymb() << ", " << model.elasticityWRTy() << std::endl;
 
 			//model.printWageElasticity();
 #if 0
@@ -90,6 +102,7 @@ int main(int argc, char *argv[])
 			}
 			//std::cout << myF.getParameter() << "," << model.elasticityWRTs() << std::endl;
 #endif
+			}
 		}
 		return 1;
 	}
@@ -116,7 +129,7 @@ int main(int argc, char *argv[])
 			ShimerProcess p((solveIndex - 1) / 2, 0.0165, 4.0 / ((solveIndex - 1) / 2));
 
 			//create model with N generations, F matching function
-			OLGModel model(numGens, D_y, D_S, myF, p, 1 - D_ETA, autoDiff);
+			OLGModel model(numGens, D_y, D_S(0, 0), myF, p, 1 - D_ETA, autoDiff);
 
 			if (which == 's') {
 				const double targ = 0;
@@ -265,7 +278,7 @@ int main(int argc, char *argv[])
 		double fAvg = 0;
 		for (int j = 0; j < 5000; j++) {
 			//update unemployment rate
-			double loseJobs = D_S*(1 - u);
+			double loseJobs = D_S(0, 0)*(1 - u);
 			double newU = u + loseJobs;
 
 			if (j > 4398) {
